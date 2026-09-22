@@ -2,62 +2,98 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-<title>西洋棋練習場</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>跟 AI 下棋</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <header>
-    <h1>♟ 西洋棋練習場</h1>
-    <p class="sub">跟自我對弈訓練出來的 AI 練棋 — 手機、電腦都能看</p>
+    <h1>♟ 跟 AI 下棋</h1>
+    <p id="status-line" class="sub">載入模型中…</p>
   </header>
 
   <main>
-    <section id="model-card" class="card">
-      <h2>目前對手</h2>
-      <p id="model-desc">載入中…</p>
-      <p id="model-updated" class="muted"></p>
-    </section>
+    <div id="board" class="board"></div>
 
-    <section id="rating-card" class="card">
-      <h2>我的棋力</h2>
-      <div class="stat-row">
-        <div class="stat">
-          <div class="stat-value" id="rating-value">—</div>
-          <div class="stat-label">目前棋力</div>
-        </div>
-        <div class="stat">
-          <div class="stat-value" id="rating-games">—</div>
-          <div class="stat-label">已下局數</div>
-        </div>
-        <div class="stat">
-          <div class="stat-value" id="rating-level">—</div>
-          <div class="stat-label">AI 難度階</div>
-        </div>
-      </div>
-      <canvas id="rating-chart" height="140"></canvas>
-      <p class="muted small">內部相對量尺，不是官方 FIDE Elo</p>
-    </section>
+    <div class="controls">
+      <button id="btn-new-white">開新局（執白）</button>
+      <button id="btn-new-black">開新局（執黑）</button>
+      <button id="btn-new-random">開新局（隨機）</button>
+      <button id="btn-resign" class="danger">認輸</button>
+    </div>
 
-    <section id="games-card" class="card">
-      <h2>對局紀錄</h2>
-      <div id="games-list" class="games-list">
-        <p class="muted">載入中…</p>
-      </div>
-    </section>
+    <div id="eval-bar-wrap" class="card">
+      <div id="eval-bar"><div id="eval-fill"></div></div>
+      <p id="eval-text" class="muted small"></p>
+    </div>
+
+    <div class="card">
+      <p id="moves-line" class="muted small"></p>
+    </div>
+
+    <div class="card">
+      <p class="muted small">
+        棋力：<span id="rating-line">—</span>
+        · <a href="#" id="settings-link">GitHub 自動記錄設定</a>
+        · <a href="results.html">查看紀錄</a>
+      </p>
+    </div>
   </main>
 
-  <footer>
-    <p class="muted small">完全靠自我對弈學會下棋，沒有人寫的棋理規則。</p>
-  </footer>
-
-  <div id="overlay" class="overlay hidden">
-    <div class="overlay-panel">
-      <button id="overlay-close" class="close-btn">✕</button>
-      <div id="overlay-body"></div>
+  <div id="promo-overlay" class="overlay hidden">
+    <div class="overlay-panel promo-panel">
+      <p>升變成？</p>
+      <div class="promo-choices">
+        <button data-p="q">♕</button>
+        <button data-p="r">♖</button>
+        <button data-p="b">♗</button>
+        <button data-p="n">♘</button>
+      </div>
     </div>
   </div>
 
-  <script src="app.js"></script>
+  <div id="result-overlay" class="overlay hidden">
+    <div class="overlay-panel">
+      <h2 id="result-title"></h2>
+      <p id="result-detail" class="muted"></p>
+      <p id="result-save-status" class="muted small"></p>
+      <button id="result-close">關閉</button>
+    </div>
+  </div>
+
+  <div id="settings-overlay" class="overlay hidden">
+    <div class="overlay-panel">
+      <h2>GitHub 自動記錄</h2>
+      <p class="muted small">
+        設定好之後，每盤棋結束會自動把棋譜、講評、棋力進度寫回你的 GitHub repo。
+        Token 只存在這個瀏覽器裡。到 GitHub → Settings → Developer settings →
+        Personal access tokens 建立一個有 repo 寫入權限的 token。
+      </p>
+      <label class="field">
+        repo（格式 owner/repo）
+        <input id="input-repo" type="text" placeholder="supercoder592/chess">
+      </label>
+      <label class="field">
+        Personal Access Token
+        <input id="input-token" type="password" placeholder="ghp_...">
+      </label>
+      <div class="controls">
+        <button id="settings-save">儲存</button>
+        <button id="settings-close">關閉</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.1/dist/ort.min.js"></script>
+  <script src="engine/encoding.js"></script>
+  <script src="engine/mcts.js"></script>
+  <script src="engine/rating.js"></script>
+  <script src="engine/commentary.js"></script>
+  <script src="engine/github.js"></script>
+  <script type="module">
+    import { Chess } from "https://cdn.jsdelivr.net/npm/chess.js@1.0.0/dist/esm/chess.js";
+    window.Chess = Chess;
+    import("./app.js");
+  </script>
 </body>
 </html>

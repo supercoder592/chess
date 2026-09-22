@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>西洋棋練習場</title>
+<link rel="stylesheet" href="results.css">
+</head>
+<body>
+  <header>
+    <h1>♟ 西洋棋練習場</h1>
+    <p class="sub">跟自我對弈訓練出來的 AI 練棋 — 手機、電腦都能看</p>
+    <p class="sub"><a href="index.html">← 回去下棋</a></p>
+  </header>
+
+  <main>
+    <section id="model-card" class="card">
+      <h2>目前對手</h2>
+      <p id="model-desc">載入中…</p>
+      <p id="model-updated" class="muted"></p>
+    </section>
+
+    <section id="rating-card" class="card">
+      <h2>我的棋力</h2>
+      <div class="stat-row">
+        <div class="stat">
+          <div class="stat-value" id="rating-value">—</div>
+          <div class="stat-label">目前棋力</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value" id="rating-games">—</div>
+          <div class="stat-label">已下局數</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value" id="rating-level">—</div>
+          <div class="stat-label">AI 難度階</div>
+        </div>
+      </div>
+      <canvas id="rating-chart" height="140"></canvas>
+      <p class="muted small">內部相對量尺，不是官方 FIDE Elo</p>
+    </section>
+
+    <section id="games-card" class="card">
+      <h2>對局紀錄</h2>
+      <div id="games-list" class="games-list">
+        <p class="muted">載入中…</p>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p class="muted small">完全靠自我對弈學會下棋，沒有人寫的棋理規則。</p>
+  </footer>
+
+  <div id="overlay" class="overlay hidden">
+    <div class="overlay-panel">
+      <button id="overlay-close" class="close-btn">✕</button>
+      <div id="overlay-body"></div>
+    </div>
+  </div>
+
+  <script src="results.js"></script>
+</body>
+</html>
