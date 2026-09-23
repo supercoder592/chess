@@ -1,14 +1,12 @@
 // 直接從瀏覽器呼叫 GitHub Contents API 寫檔案 -- 純靜態網頁沒有 git，
 // 用這個換掉「git commit/push」，效果一樣：每盤棋自動存回 repo。
 //
-// DEFAULT_TOKEN 是使用者自己要求寫死在這裡的，換取任何裝置打開都不用
-// 手動設定。他已經被明確告知：瀏覽器執行的程式碼沒辦法真正保密，任何
-// 人打開這個網頁、按 F12 都看得到這串字，這不是這個 repo 公不公開的
-// 問題，是瀏覽器本來就沒有「藏起來」這個選項。使用者確認這個帳號被亂
-// 寫也沒差，這是他自己承擔的選擇。
-// 如果要換掉:去 https://github.com/settings/tokens 撤銷舊的、生新的，
-// 改這裡的 DEFAULT_TOKEN，或是使用者自己在設定面板填就會蓋過這個預設值。
-const DEFAULT_TOKEN = "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";
+// 曾經試過把 token 寫死在這裡換取零設定，結果推上去沒多久 GitHub 就
+// 自動偵測、撤銷掉了(這是 GitHub 的 secret scanning partner program，
+// 專門找公開曝露的 token 主動殺掉)。不只是風險，是技術上真的行不通
+// ——寫死的 token 活不了多久。所以 token 只能留在使用者自己裝置的
+// localStorage，不進 git，不會被掃到。
+// repo 名稱不是密鑰，寫死在這裡沒問題，純粹省一次設定。
 const DEFAULT_REPO = "supercoder592/chess";
 
 const GH_TOKEN_KEY = "chess_practice_gh_token";
@@ -16,7 +14,7 @@ const GH_REPO_KEY = "chess_practice_gh_repo"; // "owner/repo"
 const GH_RECORD_KEY = "chess_practice_gh_record_enabled";
 
 function getToken() {
-  return localStorage.getItem(GH_TOKEN_KEY) || DEFAULT_TOKEN;
+  return localStorage.getItem(GH_TOKEN_KEY) || "";
 }
 function setToken(t) {
   localStorage.setItem(GH_TOKEN_KEY, t);
