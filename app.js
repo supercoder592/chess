@@ -382,7 +382,25 @@ document.getElementById("settings-save").addEventListener("click", () => {
 });
 
 // ------------------------------------------------------------------ init --
+// 用網址帶參數快速設定新裝置：開一次
+// ?token=xxx&repo=owner/repo 就存進這支裝置的本機，然後把參數從網址
+// 列清掉，不會留下痕跡。這個連結本身不會進 git，是使用者自己私下保管
+// 的，用來在自己的其他裝置上快速設定，不影響安全性。
+function applyUrlSetup() {
+  const params = new URLSearchParams(window.location.search);
+  const token = params.get("token");
+  const repo = params.get("repo");
+  if (!token && !repo) return;
+  if (token) GithubModule.setToken(token);
+  if (repo) GithubModule.setRepo(repo);
+  const url = new URL(window.location.href);
+  url.searchParams.delete("token");
+  url.searchParams.delete("repo");
+  window.history.replaceState({}, document.title, url.pathname + url.hash);
+}
+
 async function init() {
+  applyUrlSetup();
   tracker = new RatingModule.RatingTracker(loadTrackerLocal());
   game = new Chess();
   refreshUI();
