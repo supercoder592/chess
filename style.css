@@ -138,3 +138,14 @@ button.danger { border-color: var(--bad); color: var(--bad); }
   font-size: 0.95em;
 }
 a { color: var(--accent); }
+
+.toggle-field {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.toggle-field input[type="checkbox"] {
+  width: auto;
+  margin-top: 3px;
+  flex: none;
+}

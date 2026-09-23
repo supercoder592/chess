@@ -284,6 +284,10 @@ async function trySaveToGithub(resultText, userScore, pgnResult) {
     statusEl.textContent = "（沒設定 GitHub，只存在這台裝置）";
     return;
   }
+  if (!GithubModule.getRecordEnabled()) {
+    statusEl.textContent = "（自動記錄已關閉，這局只存在這台裝置）";
+    return;
+  }
   statusEl.textContent = "記錄到 GitHub 中…";
   try {
     const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
@@ -326,6 +330,7 @@ document.getElementById("settings-link").addEventListener("click", (e) => {
   e.preventDefault();
   document.getElementById("input-repo").value = GithubModule.getRepo();
   document.getElementById("input-token").value = GithubModule.getToken();
+  document.getElementById("input-record-enabled").checked = GithubModule.getRecordEnabled();
   document.getElementById("settings-overlay").classList.remove("hidden");
 });
 document.getElementById("settings-close").addEventListener("click", () => {
@@ -334,6 +339,7 @@ document.getElementById("settings-close").addEventListener("click", () => {
 document.getElementById("settings-save").addEventListener("click", () => {
   GithubModule.setRepo(document.getElementById("input-repo").value.trim());
   GithubModule.setToken(document.getElementById("input-token").value.trim());
+  GithubModule.setRecordEnabled(document.getElementById("input-record-enabled").checked);
   document.getElementById("settings-overlay").classList.add("hidden");
 });
 

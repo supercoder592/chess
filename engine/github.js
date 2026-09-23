@@ -5,6 +5,7 @@
 
 const GH_TOKEN_KEY = "chess_practice_gh_token";
 const GH_REPO_KEY = "chess_practice_gh_repo"; // "owner/repo"
+const GH_RECORD_KEY = "chess_practice_gh_record_enabled";
 
 function getToken() {
   return localStorage.getItem(GH_TOKEN_KEY) || "";
@@ -17,6 +18,15 @@ function getRepo() {
 }
 function setRepo(r) {
   localStorage.setItem(GH_REPO_KEY, r);
+}
+// 跟有沒有設定 token 分開:想保留 token 但暫時不記錄某幾局的話用這個關掉，
+// 不用把 token 刪掉重填。預設開啟(只要有設定 token/repo)。
+function getRecordEnabled() {
+  const v = localStorage.getItem(GH_RECORD_KEY);
+  return v === null ? true : v === "1";
+}
+function setRecordEnabled(on) {
+  localStorage.setItem(GH_RECORD_KEY, on ? "1" : "0");
 }
 
 function utf8ToBase64(str) {
@@ -67,7 +77,8 @@ async function ghPutFile(path, content, message) {
 }
 
 const GithubExports = {
-  getToken, setToken, getRepo, setRepo, ghGetFile, ghPutFile,
+  getToken, setToken, getRepo, setRepo,
+  getRecordEnabled, setRecordEnabled, ghGetFile, ghPutFile,
 };
 if (typeof module !== "undefined") module.exports = GithubExports;
 if (typeof window !== "undefined") window.GithubModule = GithubExports;
