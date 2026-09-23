@@ -162,6 +162,39 @@ function bumpHistory() {
   historyMap.set(k, (historyMap.get(k) || 0) + 1);
 }
 
+// --------------------------------------------------------- 手勢移動動畫 --
+function getSquareCenter(name) {
+  const el = boardEl.querySelector(`[data-sq="${name}"]`);
+  const boardRect = boardEl.getBoundingClientRect();
+  const elRect = el.getBoundingClientRect();
+  return {
+    x: elRect.left - boardRect.left + elRect.width / 2,
+    y: elRect.top - boardRect.top + elRect.height / 2,
+  };
+}
+
+function animateHandMove(fromSq, toSq, durationMs = 320) {
+  const piece = game.get(fromSq);
+  return new Promise((resolve) => {
+    if (!piece) { resolve(); return; }
+    const from = getSquareCenter(fromSq);
+    const to = getSquareCenter(toSq);
+    const hand = document.createElement("div");
+    hand.className = "hand-overlay";
+    const colourClass = piece.color === "w" ? "white" : "black";
+    hand.innerHTML =
+      `<span class="hand-piece ${colourClass}">${PIECE_UNICODE[piece.type]}</span>` +
+      `<span class="hand-icon">✋</span>`;
+    hand.style.left = from.x + "px";
+    hand.style.top = from.y + "px";
+    boardEl.appendChild(hand);
+    void hand.offsetWidth;                // 強制 reflow，讓瀏覽器套用起點位置後才觸發過渡
+    hand.style.left = to.x + "px";
+    hand.style.top = to.y + "px";
+    setTimeout(() => { hand.remove(); resolve(); }, durationMs);
+  });
+}
+
 async function playUserMove(moveObj) {
   const mv = game.move(moveObj);
   if (!mv) return;
@@ -177,6 +210,7 @@ async function playUserMove(moveObj) {
   const { sims, temp } = levelInfo;
   const root = await mcts.search(game, historyMap, sims);
   const uci = mcts.pick(root, temp);
+  await animateHandMove(uci.slice(0, 2), uci.slice(2, 4));
   const aiMv = game.move({ from: uci.slice(0, 2), to: uci.slice(2, 4), promotion: uci[4] });
   movesSan.push(aiMv.san);
   bumpHistory();
@@ -233,6 +267,7 @@ async function newGame(color) {
     refreshUI();
     const root = await mcts.search(game, historyMap, levelInfo.sims);
     const uci = mcts.pick(root, levelInfo.temp);
+    await animateHandMove(uci.slice(0, 2), uci.slice(2, 4));
     const mv = game.move({ from: uci.slice(0, 2), to: uci.slice(2, 4), promotion: uci[4] });
     movesSan.push(mv.san);
     bumpHistory();
