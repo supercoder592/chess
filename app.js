@@ -173,7 +173,7 @@ function getSquareCenter(name) {
   };
 }
 
-function animateHandMove(fromSq, toSq, durationMs = 320) {
+function animateHandMove(fromSq, toSq, durationMs = 360) {
   const piece = game.get(fromSq);
   return new Promise((resolve) => {
     if (!piece) { resolve(); return; }
@@ -183,8 +183,11 @@ function animateHandMove(fromSq, toSq, durationMs = 320) {
     hand.className = "hand-overlay";
     const colourClass = piece.color === "w" ? "white" : "black";
     hand.innerHTML =
+      `<div class="lift-wrap">` +
+      `<span class="piece-shadow"></span>` +
       `<span class="hand-piece ${colourClass}">${PIECE_UNICODE[piece.type]}</span>` +
-      `<span class="hand-icon">✋</span>`;
+      `<span class="hand-icon">🤏</span>` +
+      `</div>`;
     hand.style.left = from.x + "px";
     hand.style.top = from.y + "px";
     boardEl.appendChild(hand);

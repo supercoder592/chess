@@ -48,35 +48,63 @@ main {
 }
 
 /* AI 走棋時的手勢動畫：從起點格滑到終點格，讓它看起來像真的有人在下棋，
-   不是瞬間跳過去 */
+   不是瞬間跳過去。手指捏著棋子、拿起來、移過去、放下，模擬真實手感。 */
 .hand-overlay {
   position: absolute;
   width: 0;
   height: 0;
-  transition: left 0.32s ease-in-out, top 0.32s ease-in-out;
+  transition: left 0.36s cubic-bezier(0.45, 0, 0.2, 1), top 0.36s cubic-bezier(0.45, 0, 0.2, 1);
   z-index: 5;
   pointer-events: none;
+}
+.hand-overlay .lift-wrap {
+  position: absolute;
+  left: 0;
+  top: 0;
+  animation: hand-lift 0.36s cubic-bezier(0.45, 0, 0.2, 1);
+}
+.hand-overlay .piece-shadow {
+  position: absolute;
+  left: -17px;
+  top: -10px;
+  width: 34px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.32);
+  filter: blur(2px);
+  animation: shadow-spread 0.36s cubic-bezier(0.45, 0, 0.2, 1);
 }
 .hand-overlay .hand-piece {
   position: absolute;
   left: -18px;
-  top: -18px;
+  top: -20px;
   font-size: 7vw;
-  animation: hand-lift 0.32s ease-in-out;
+  z-index: 2;
+  filter: drop-shadow(0 3px 2px rgba(0, 0, 0, 0.35));
 }
 .hand-overlay .hand-piece.white { color: #f5f5f5; text-shadow: 0 0 2px #000, 0 0 1px #000; }
 .hand-overlay .hand-piece.black { color: #111; text-shadow: 0 0 2px #ccc; }
 .hand-overlay .hand-icon {
   position: absolute;
-  left: 6px;
-  top: 10px;
-  font-size: 5vw;
-  animation: hand-lift 0.32s ease-in-out;
+  left: -4px;
+  top: -2px;
+  font-size: 6.2vw;
+  z-index: 3;
+  transform-origin: 30% 70%;
+  transform: rotate(-22deg);
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.4));
 }
 @keyframes hand-lift {
-  0% { transform: translateY(0); }
-  50% { transform: translateY(-16px); }
-  100% { transform: translateY(0); }
+  0%   { transform: translateY(0) scale(1); }
+  18%  { transform: translateY(-6px) scale(1.08); }
+  50%  { transform: translateY(-20px) scale(1.14); }
+  82%  { transform: translateY(-6px) scale(1.08); }
+  100% { transform: translateY(0) scale(1); }
+}
+@keyframes shadow-spread {
+  0%   { opacity: 0.32; transform: scale(1); }
+  50%  { opacity: 0.12; transform: scale(0.6); }
+  100% { opacity: 0.32; transform: scale(1); }
 }
 .sq {
   display: flex;
