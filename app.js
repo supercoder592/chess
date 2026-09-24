@@ -438,6 +438,7 @@ document.getElementById("settings-save").addEventListener("click", async () => {
            + e.message + "\n請檢查 token 有沒有打對、有沒有勾 repo 權限。");
     }
   }
+  updateGithubStatus();
   document.getElementById("settings-overlay").classList.add("hidden");
 });
 
@@ -481,8 +482,17 @@ async function applyUrlSetup() {
   }
 }
 
+function updateGithubStatus() {
+  const el = document.getElementById("github-status");
+  if (!el) return;
+  const hasToken = !!GithubModule.getToken();
+  el.textContent = hasToken ? "已設定" : "未設定";
+  el.style.color = hasToken ? "#7ec47e" : "#9a9a9a";
+}
+
 async function init() {
   await applyUrlSetup();
+  updateGithubStatus();
   tracker = new RatingModule.RatingTracker(loadTrackerLocal());
   game = new Chess();
   refreshUI();
