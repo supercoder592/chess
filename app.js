@@ -9,6 +9,24 @@ const PIECE_UNICODE = {
 
 const LOCAL_RATING_KEY = "chess_practice_rating_state_v1";
 
+// 對局記錄一律用台灣時間(UTC+8)，不管玩的人手機設哪個時區 -- 之前用
+// toISOString() 固定是 UTC，時間看起來全部晚 8 小時。用 UTC 時間手動加
+// 8 小時再取「UTC 欄位」印出來，這樣不管使用者裝置實際時區是什麼都準。
+function taiwanNow() {
+  return new Date(Date.now() + 8 * 3600 * 1000);
+}
+function pad2(n) {
+  return String(n).padStart(2, "0");
+}
+function taiwanStamp(d) {
+  return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())}T`
+       + `${pad2(d.getUTCHours())}-${pad2(d.getUTCMinutes())}-${pad2(d.getUTCSeconds())}`;
+}
+function taiwanDisplay(d) {
+  return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())} `
+       + `${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())}`;
+}
+
 let ortSession = null;
 let mcts = null;
 let game = null;
@@ -359,13 +377,14 @@ async function trySaveToGithub(snapshot) {
   }
   statusEl.textContent = "記錄到 GitHub 中…";
   try {
-    const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+    const now = taiwanNow();     // 不管使用者裝置設哪個時區，一律記台灣時間
+    const stamp = taiwanStamp(now);
 
     // 重播這局自己的棋步，建一個獨立的棋盤只用來產生 PGN，不共用正在
     // 玩的那個 game 物件
     const replay = new Chess();
     replay.header("Event", "西洋棋 AI 練習場",
-      "Date", new Date().toISOString().slice(0, 10).replace(/-/g, "."),
+      "Date", `${now.getUTCFullYear()}.${pad2(now.getUTCMonth() + 1)}.${pad2(now.getUTCDate())}`,
       "White", userColor === "white" ? "使用者" : "AI",
       "Black", userColor === "white" ? "AI" : "使用者",
       "Result", pgnResult);
@@ -383,7 +402,7 @@ async function trySaveToGithub(snapshot) {
     const gamesFile = await GithubModule.ghGetFile("data/games.json");
     const games = gamesFile ? JSON.parse(gamesFile.content) : [];
     games.push({
-      stamp, date: new Date().toISOString().slice(0, 16).replace("T", " "),
+      stamp, date: taiwanDisplay(now),
       pgn: `games/${stamp}.pgn`, commentary: `games/${stamp}_commentary.md`,
       result: resultText, user_color: userColor, user_score: userScore,
       plies: movesSan.length, rating_before: ratingBefore, rating_after: ratingAfter,
