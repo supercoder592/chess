@@ -1,71 +1,143 @@
 {
  "summary": {
-  "user_rating": 818.1,
-  "games": 5,
-  "level": 5,
+  "user_rating": 1003.9,
+  "games": 11,
+  "level": 11,
   "level_max": 12,
-  "next_ai_sims": 96
+  "next_ai_sims": 768
  },
  "history": [
   {
    "game": 1,
-   "t": 1790165701.128,
-   "result": 0.5,
+   "t": 1790248053.239,
+   "result": 1,
    "level": 0,
    "sims": 16,
    "ai_rating": 600,
    "user_rating_before": 800,
-   "user_rating_after": 791.7,
-   "user_color": "black",
-   "plies": 142
+   "user_rating_after": 807.7,
+   "user_color": "white",
+   "plies": 73
   },
   {
    "game": 2,
-   "t": 1790165938.016,
+   "t": 1790249348.308,
    "result": 1,
    "level": 0,
    "sims": 16,
    "ai_rating": 600,
-   "user_rating_before": 791.7,
-   "user_rating_after": 799.7,
-   "user_color": "black",
-   "plies": 118
+   "user_rating_before": 807.7,
+   "user_rating_after": 815.1,
+   "user_color": "white",
+   "plies": 117
   },
   {
    "game": 3,
-   "t": 1790258487.263,
-   "result": 0.5,
-   "level": 0,
-   "sims": 16,
-   "ai_rating": 600,
-   "user_rating_before": 799.7,
-   "user_rating_after": 791.4,
-   "user_color": "black",
-   "plies": 74
-  },
-  {
-   "game": 4,
-   "t": 1790260458.998,
+   "t": 1790250544.262,
    "result": 1,
    "level": 0,
    "sims": 16,
    "ai_rating": 600,
-   "user_rating_before": 791.4,
-   "user_rating_after": 799.3,
+   "user_rating_before": 815.1,
+   "user_rating_after": 822.3,
+   "user_color": "white",
+   "plies": 83
+  },
+  {
+   "game": 4,
+   "t": 1790250850.219,
+   "result": 1,
+   "level": 1,
+   "sims": 24,
+   "ai_rating": 730,
+   "user_rating_before": 822.3,
+   "user_rating_after": 834.2,
    "user_color": "black",
-   "plies": 46
+   "plies": 68
   },
   {
    "game": 5,
-   "t": 1790260608.117,
+   "t": 1790250959.882,
    "result": 1,
    "level": 2,
    "sims": 32,
    "ai_rating": 860,
-   "user_rating_before": 799.3,
-   "user_rating_after": 818.1,
+   "user_rating_before": 834.2,
+   "user_rating_after": 851.3,
+   "user_color": "black",
+   "plies": 76
+  },
+  {
+   "game": 6,
+   "t": 1790251027.709,
+   "result": 1,
+   "level": 3,
+   "sims": 48,
+   "ai_rating": 990,
+   "user_rating_before": 851.3,
+   "user_rating_after": 873.4,
    "user_color": "black",
    "plies": 50
+  },
+  {
+   "game": 7,
+   "t": 1790251158.893,
+   "result": 0.5,
+   "level": 4,
+   "sims": 64,
+   "ai_rating": 1120,
+   "user_rating_before": 873.4,
+   "user_rating_after": 883.2,
+   "user_color": "black",
+   "plies": 72
+  },
+  {
+   "game": 8,
+   "t": 1790251440.18,
+   "result": 1,
+   "level": 5,
+   "sims": 96,
+   "ai_rating": 1250,
+   "user_rating_before": 883.2,
+   "user_rating_after": 911.7,
+   "user_color": "black",
+   "plies": 82
+  },
+  {
+   "game": 9,
+   "t": 1790251540.536,
+   "result": 1,
+   "level": 6,
+   "sims": 129,
+   "ai_rating": 1380,
+   "user_rating_before": 911.7,
+   "user_rating_after": 941.7,
+   "user_color": "black",
+   "plies": 76
+  },
+  {
+   "game": 10,
+   "t": 1790251671.767,
+   "result": 1,
+   "level": 7,
+   "sims": 192,
+   "ai_rating": 1510,
+   "user_rating_before": 941.7,
+   "user_rating_after": 972.5,
+   "user_color": "black",
+   "plies": 80
+  },
+  {
+   "game": 11,
+   "t": 1790292786.422,
+   "result": 1,
+   "level": 8,
+   "sims": 256,
+   "ai_rating": 1640,
+   "user_rating_before": 972.5,
+   "user_rating_after": 1003.9,
+   "user_color": "black",
+   "plies": 82
   }
  ]
 }
