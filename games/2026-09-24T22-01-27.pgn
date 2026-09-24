@@ -1,0 +1,7 @@
+[Event "西洋棋 AI 練習場"]
+[Date "2026.09.24"]
+[White "AI"]
+[Black "使用者"]
+[Result "1/2-1/2"]
+
+1. d4 d5 2. Nc3 Qd6 3. e4 Qa6 4. f4 dxe4 5. Kf2 e3+ 6. Ke1 e2 7. Nd5 exd1=Q+ 8. Kf2 Qxd4+ 9. Ke1 Qa5+ 10. c3 Qe3+ 11. Kd1 Qaxc3 12. bxc3 b5 13. Nh3 b4 14. Nxe7 bxc3 15. g3 c2+ 16. Kxc2 c5 17. Nf5 a5 18. Nxg7+ Bxg7 19. a3 a4 20. g4 c4 21. g5 c3 22. Ra2 Qxf4 23. Ra1 Qxg5 24. Be2 Ra5 25. Bf3 Rf5 26. Ra2 h5 27. Nf2 Rh6 28. Nd1 Rhf6 29. Bd5 Rd6 30. Kd3 Rdxd5+ 31. Ke4 Rf1 32. Nf2 Rxh1 33. Kf3 Rxc1 34. Nh1 Rxh1 35. h3 Rxh3+ 36. Ke4 Rd1 37. Rb2 cxb2 1/2-1/2
