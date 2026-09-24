@@ -87,6 +87,17 @@ canvas { width: 100%; max-width: 100%; }
   flex-wrap: wrap;
 }
 .game-date { color: var(--muted); font-size: 0.85em; }
+.delete-btn {
+  background: none;
+  border: none;
+  color: var(--bad);
+  font-size: 1.1em;
+  padding: 4px 8px;
+  cursor: pointer;
+  border-radius: 6px;
+  margin-left: auto;
+}
+.delete-btn:active { background: rgba(212, 117, 106, 0.2); }
 .result-win { color: var(--good); font-weight: 600; }
 .result-loss { color: var(--bad); font-weight: 600; }
 .result-draw { color: var(--muted); font-weight: 600; }

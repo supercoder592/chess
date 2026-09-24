@@ -82,9 +82,23 @@ async function ghPutFile(path, content, message) {
   return res.json();
 }
 
+// 刪除一個檔案(要先知道它的 sha，不存在就當作已經刪了)
+async function ghDeleteFile(path, message) {
+  const existing = await ghGetFile(path).catch(() => null);
+  if (!existing) return;
+  const res = await ghRequest(path, {
+    method: "DELETE",
+    body: JSON.stringify({ message, sha: existing.sha }),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`GitHub 刪除失敗 ${path}: ${res.status} ${text}`);
+  }
+}
+
 const GithubExports = {
   getToken, setToken, getRepo, setRepo,
-  getRecordEnabled, setRecordEnabled, ghGetFile, ghPutFile,
+  getRecordEnabled, setRecordEnabled, ghGetFile, ghPutFile, ghDeleteFile,
 };
 if (typeof module !== "undefined") module.exports = GithubExports;
 if (typeof window !== "undefined") window.GithubModule = GithubExports;

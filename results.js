@@ -140,6 +140,29 @@ async function showGame(game) {
   }
 }
 
+async function deleteGame(g) {
+  if (!GithubModule.getToken() || !GithubModule.getRepo()) {
+    alert("沒有設定 GitHub token，沒辦法刪除雲端上的紀錄");
+    return;
+  }
+  if (!confirm(`確定要刪除這局紀錄嗎？（${g.date}）這個動作沒辦法復原。`)) return;
+
+  try {
+    await GithubModule.ghDeleteFile(g.pgn, `刪除對局 ${g.stamp}`);
+    await GithubModule.ghDeleteFile(g.commentary, `刪除講評 ${g.stamp}`);
+
+    const gamesFile = await GithubModule.ghGetFile("data/games.json");
+    const games = gamesFile ? JSON.parse(gamesFile.content) : [];
+    const kept = games.filter((x) => x.stamp !== g.stamp);
+    await GithubModule.ghPutFile("data/games.json", JSON.stringify(kept, null, 1),
+      `刪除對局 ${g.stamp}`);
+
+    await loadGames();
+  } catch (e) {
+    alert("刪除失敗：" + e.message);
+  }
+}
+
 async function loadGames() {
   const games = await loadJSON("data/games.json");
   const list = document.getElementById("games-list");
@@ -159,6 +182,7 @@ async function loadGames() {
         <div class="game-top">
           <span class="${resultClass(g.user_score)}">${resultLabel(g.user_score)}</span>
           <span class="game-date">${g.date}</span>
+          <button class="delete-btn" title="刪除這局">🗑</button>
         </div>
         <div class="game-meta">
           ${colorLabel} · ${g.plies} 手 · 難度階 ${g.level}
@@ -166,6 +190,10 @@ async function loadGames() {
         </div>
       `;
       el.addEventListener("click", () => showGame(g));
+      el.querySelector(".delete-btn").addEventListener("click", (e) => {
+        e.stopPropagation();
+        deleteGame(g);
+      });
       list.appendChild(el);
     });
 }

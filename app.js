@@ -245,7 +245,21 @@ async function finishGame(resultText, userScore, pgnResult) {
   saveTrackerLocal();
   refreshUI();
   showResult(resultText);
-  await trySaveToGithub(resultText, userScore, pgnResult);
+
+  // 把這局需要存檔的資料整個拷貝一份，不要依賴共用的全域變數 --
+  // 使用者常常在存檔還沒傳完的時候就點「開新局」，那些全域變數(game,
+  // movesSan, evals...)馬上被下一局蓋掉，存檔存到一半接住的就是新局
+  // 剛重置的空資料，整個存檔悄悄失敗或存出對不上的內容(這就是「講評
+  // 有時候沒跟著存到」的真正原因)。存檔全程只用這份快照，不管使用者
+  // 手速多快都不會互相干擾。
+  const snapshot = {
+    movesSan: movesSan.slice(),
+    evals: evals.slice(),
+    userColor, levelInfo: { ...levelInfo },
+    ratingBefore, ratingAfter,
+    resultText, userScore, pgnResult,
+  };
+  await trySaveToGithub(snapshot);
 }
 
 // -------------------------------------------------------------- new game --
@@ -316,7 +330,24 @@ function saveTrackerLocal() {
 }
 
 // ---------------------------------------------------------- GitHub 自動存檔 --
-async function trySaveToGithub(resultText, userScore, pgnResult) {
+async function ghPutFileRetry(path, content, message, tries = 2) {
+  let lastErr;
+  for (let i = 0; i < tries; i++) {
+    try {
+      return await GithubModule.ghPutFile(path, content, message);
+    } catch (e) {
+      lastErr = e;
+      if (i < tries - 1) await new Promise((r) => setTimeout(r, 800));
+    }
+  }
+  throw lastErr;
+}
+
+// snapshot: finishGame() 存的那份獨立拷貝，全程只用這個，不碰全域變數，
+// 使用者手速再快、馬上開新局，也不會弄壞正在傳的這一局。
+async function trySaveToGithub(snapshot) {
+  const { movesSan, evals, userColor, levelInfo, ratingBefore, ratingAfter,
+         resultText, userScore, pgnResult } = snapshot;
   const statusEl = document.getElementById("result-save-status");
   if (!GithubModule.getToken() || !GithubModule.getRepo()) {
     statusEl.textContent = "（沒設定 GitHub，只存在這台裝置）";
@@ -329,16 +360,25 @@ async function trySaveToGithub(resultText, userScore, pgnResult) {
   statusEl.textContent = "記錄到 GitHub 中…";
   try {
     const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
-    game.header("Event", "西洋棋 AI 練習場", "Date", new Date().toISOString().slice(0, 10).replace(/-/g, "."),
+
+    // 重播這局自己的棋步，建一個獨立的棋盤只用來產生 PGN，不共用正在
+    // 玩的那個 game 物件
+    const replay = new Chess();
+    replay.header("Event", "西洋棋 AI 練習場",
+      "Date", new Date().toISOString().slice(0, 10).replace(/-/g, "."),
       "White", userColor === "white" ? "使用者" : "AI",
       "Black", userColor === "white" ? "AI" : "使用者",
       "Result", pgnResult);
-    const pgn = game.pgn();
+    for (const san of movesSan) replay.move(san);
+    const pgn = replay.pgn();
+
     const commentary = CommentaryModule.generateCommentary(
       movesSan, evals, userColor, resultText, ratingBefore, ratingAfter, levelInfo);
 
-    await GithubModule.ghPutFile(`games/${stamp}.pgn`, pgn, `對局記錄 ${stamp}`);
-    await GithubModule.ghPutFile(`games/${stamp}_commentary.md`, commentary, `講評 ${stamp}`);
+    // PGN 跟講評一起先存，兩個都成功才繼續更新索引 -- 不會出現「有棋譜
+    // 沒講評」這種半殘的紀錄
+    await ghPutFileRetry(`games/${stamp}.pgn`, pgn, `對局記錄 ${stamp}`);
+    await ghPutFileRetry(`games/${stamp}_commentary.md`, commentary, `講評 ${stamp}`);
 
     const gamesFile = await GithubModule.ghGetFile("data/games.json");
     const games = gamesFile ? JSON.parse(gamesFile.content) : [];
@@ -349,10 +389,10 @@ async function trySaveToGithub(resultText, userScore, pgnResult) {
       plies: movesSan.length, rating_before: ratingBefore, rating_after: ratingAfter,
       level: levelInfo.level, sims: levelInfo.sims, moves_san: movesSan,
     });
-    await GithubModule.ghPutFile("data/games.json", JSON.stringify(games, null, 1),
+    await ghPutFileRetry("data/games.json", JSON.stringify(games, null, 1),
       `對局記錄 ${stamp}（棋力 ${ratingAfter.toFixed(0)}）`);
 
-    await GithubModule.ghPutFile("data/rating.json",
+    await ghPutFileRetry("data/rating.json",
       JSON.stringify({ summary: tracker.summary(), history: tracker.state.history }, null, 1),
       `更新棋力進度（${ratingAfter.toFixed(0)}）`);
 
