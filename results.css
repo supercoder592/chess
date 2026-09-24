@@ -96,6 +96,8 @@ canvas { width: 100%; max-width: 100%; }
   cursor: pointer;
   border-radius: 6px;
   margin-left: auto;
+  flex: none;   /* 後面加的通用 button{flex:1 1 auto} 規則會把它撐滿整列，
+                   蓋住卡片其他地方害點擊點不到，這裡蓋回來 */
 }
 .delete-btn:active { background: rgba(212, 117, 106, 0.2); }
 .result-win { color: var(--good); font-weight: 600; }
@@ -140,3 +142,46 @@ footer { text-align: center; padding: 20px; }
 }
 #overlay-body h1 { font-size: 1.2em; }
 #overlay-body h2 { font-size: 1.05em; color: var(--accent); }
+
+.wide-panel { max-width: 460px; }
+
+/* 棋局回放用的棋盤，跟下棋主頁那個棋盤同一套視覺 */
+.board {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  grid-template-rows: repeat(8, 1fr);
+  border-radius: 8px;
+  overflow: hidden;
+  border: 2px solid #333;
+  margin-top: 4px;
+}
+.sq {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 7vw;
+  position: relative;
+  user-select: none;
+}
+@media (min-width: 480px) { .sq { font-size: 32px; } }
+.sq.light { background: #e9dcc3; }
+.sq.dark { background: #7d6a54; }
+.piece.white { color: #ffffff; text-shadow: 0 0 2px #000, 0 0 1px #000; }
+.piece.black { color: #000000; text-shadow: 0 0 2px #ddd; }
+
+#overlay-caption { text-align: center; margin: 8px 0; min-height: 1.3em; }
+
+.controls { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+button {
+  flex: 1 1 auto;
+  padding: 10px 8px;
+  border-radius: 8px;
+  border: 1px solid #444;
+  background: var(--panel);
+  color: var(--fg);
+  font-size: 0.9em;
+  cursor: pointer;
+}
+button:active { background: #2f2f2f; }

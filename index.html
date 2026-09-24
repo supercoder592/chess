@@ -54,11 +54,32 @@
   </div>
 
   <div id="result-overlay" class="overlay hidden">
-    <div class="overlay-panel">
+    <div class="overlay-panel result-panel">
       <h2 id="result-title"></h2>
       <p id="result-detail" class="muted"></p>
       <p id="result-save-status" class="muted small"></p>
-      <button id="result-close">關閉</button>
+      <div id="result-commentary"></div>
+      <div class="controls">
+        <button id="result-replay">看棋局回放</button>
+        <button id="result-close">關閉</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="replay-overlay" class="overlay hidden">
+    <div class="overlay-panel replay-panel">
+      <button id="replay-close" class="close-btn">✕</button>
+      <div id="replay-board" class="board"></div>
+      <p id="replay-caption" class="muted small"></p>
+      <div class="controls">
+        <button id="replay-prev">◀ 上一步</button>
+        <button id="replay-play">▶ 播放</button>
+        <button id="replay-next">下一步 ▶</button>
+      </div>
+      <div class="controls">
+        <button id="replay-gif">下載成 GIF（可存到相簿）</button>
+      </div>
+      <p id="replay-gif-status" class="muted small"></p>
     </div>
   </div>
 
@@ -90,6 +111,8 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.1/dist/ort.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.js"></script>
+  <script src="engine/board_render.js"></script>
   <script src="engine/encoding.js"></script>
   <script src="engine/mcts.js"></script>
   <script src="engine/rating.js"></script>

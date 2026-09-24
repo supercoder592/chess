@@ -3,9 +3,7 @@
 // 不需要任何伺服器 -- 手機、電腦、有沒有網路都能玩(第一次載入完模型
 // 之後，瀏覽器會快取，離線也能玩；只有「自動記錄回 GitHub」需要網路)。
 
-const PIECE_UNICODE = {
-  p: "♙", n: "♘", b: "♗", r: "♖", q: "♕", k: "♔",
-};
+const { PIECE_UNICODE, squareName, renderPieces, buildPositions, drawPositionToCanvas } = BoardRender;
 
 const LOCAL_RATING_KEY = "chess_practice_rating_state_v1";
 
@@ -67,40 +65,10 @@ async function quickEval() {
 }
 
 // ---------------------------------------------------------------- board --
-function squareName(file, rank) {
-  return "abcdefgh"[file] + (rank + 1);
-}
-
 function renderBoard() {
-  boardEl.innerHTML = "";
   if (!game) return;
-  const board = game.board(); // board[0]=rank8 ... board[7]=rank1
-  const flip = userColor === "black";
-
-  for (let visRank = 7; visRank >= 0; visRank--) {
-    for (let visFile = 0; visFile < 8; visFile++) {
-      const rank = flip ? 7 - visRank : visRank;
-      const file = flip ? 7 - visFile : visFile;
-      const cell = board[7 - rank][file];
-      const name = squareName(file, rank);
-
-      const sq = document.createElement("div");
-      sq.className = "sq " + ((file + rank) % 2 === 1 ? "light" : "dark");
-      sq.dataset.sq = name;
-
-      if (cell) {
-        const span = document.createElement("span");
-        span.className = "piece " + (cell.color === "w" ? "white" : "black");
-        span.textContent = PIECE_UNICODE[cell.type];
-        sq.appendChild(span);
-      }
-      if (selected === name) sq.classList.add("selected");
-      if (legalFromSel.some((m) => m.to === name)) sq.classList.add("target");
-
-      sq.addEventListener("click", () => onSquareClick(name, cell));
-      boardEl.appendChild(sq);
-    }
-  }
+  renderPieces(boardEl, game.board(), userColor === "black",
+    { selected, targets: legalFromSel, onClick: onSquareClick });
 }
 
 function updateEval(v) {
@@ -257,12 +225,13 @@ async function checkGameOver() {
   return false;
 }
 
+let lastGameSnapshot = null; // 給「看棋局回放」按鈕用
+
 async function finishGame(resultText, userScore, pgnResult) {
   status = "finished";
   ratingAfter = tracker.recordResult(userScore, { user_color: userColor, plies: movesSan.length });
   saveTrackerLocal();
   refreshUI();
-  showResult(resultText);
 
   // 把這局需要存檔的資料整個拷貝一份，不要依賴共用的全域變數 --
   // 使用者常常在存檔還沒傳完的時候就點「開新局」，那些全域變數(game,
@@ -277,6 +246,14 @@ async function finishGame(resultText, userScore, pgnResult) {
     ratingBefore, ratingAfter,
     resultText, userScore, pgnResult,
   };
+  // 講評不管有沒有連上 GitHub 都要算出來、當場顯示 -- 之前只有存檔成功
+  // 才看得到，使用者要求「checkmate 的時候就要顯示」，不用跑去查紀錄頁
+  snapshot.commentary = CommentaryModule.generateCommentary(
+    snapshot.movesSan, snapshot.evals, snapshot.userColor, snapshot.resultText,
+    snapshot.ratingBefore, snapshot.ratingAfter, snapshot.levelInfo);
+  lastGameSnapshot = snapshot;
+
+  showResult(snapshot);
   await trySaveToGithub(snapshot);
 }
 
@@ -323,11 +300,30 @@ document.getElementById("btn-resign").addEventListener("click", async () => {
   await finishGame(resultText, 0.0, pgnResult);
 });
 
-function showResult(text) {
-  document.getElementById("result-title").textContent = text;
+function simpleMarkdownToHtml(md) {
+  const escaped = md.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const lines = escaped.split("\n");
+  let html = "";
+  let inCode = false;
+  for (const line of lines) {
+    if (line.startsWith("```")) { inCode = !inCode; html += inCode ? "<pre>" : "</pre>"; continue; }
+    if (inCode) { html += line + "\n"; continue; }
+    if (line.startsWith("# ")) html += `<h1>${line.slice(2)}</h1>`;
+    else if (line.startsWith("## ")) html += `<h2>${line.slice(3)}</h2>`;
+    else if (line.startsWith("- ")) html += `<p>• ${line.slice(2)}</p>`;
+    else if (line.trim() === "---") html += "<hr>";
+    else if (line.trim() !== "") html += `<p>${line}</p>`;
+  }
+  return html;
+}
+
+function showResult(snapshot) {
+  document.getElementById("result-title").textContent = snapshot.resultText;
   document.getElementById("result-detail").textContent =
-    `棋力：${Math.round(ratingBefore)} → ${Math.round(ratingAfter)}`;
+    `棋力：${Math.round(snapshot.ratingBefore)} → ${Math.round(snapshot.ratingAfter)}`;
   document.getElementById("result-save-status").textContent = "";
+  document.getElementById("result-commentary").innerHTML =
+    simpleMarkdownToHtml(snapshot.commentary);
   document.getElementById("result-overlay").classList.remove("hidden");
 }
 document.getElementById("result-close").addEventListener("click", () => {
@@ -365,7 +361,7 @@ async function ghPutFileRetry(path, content, message, tries = 2) {
 // 使用者手速再快、馬上開新局，也不會弄壞正在傳的這一局。
 async function trySaveToGithub(snapshot) {
   const { movesSan, evals, userColor, levelInfo, ratingBefore, ratingAfter,
-         resultText, userScore, pgnResult } = snapshot;
+         resultText, userScore, pgnResult, commentary } = snapshot;
   const statusEl = document.getElementById("result-save-status");
   if (!GithubModule.getToken() || !GithubModule.getRepo()) {
     statusEl.textContent = "（沒設定 GitHub，只存在這台裝置）";
@@ -390,9 +386,6 @@ async function trySaveToGithub(snapshot) {
       "Result", pgnResult);
     for (const san of movesSan) replay.move(san);
     const pgn = replay.pgn();
-
-    const commentary = CommentaryModule.generateCommentary(
-      movesSan, evals, userColor, resultText, ratingBefore, ratingAfter, levelInfo);
 
     // PGN 跟講評一起先存，兩個都成功才繼續更新索引 -- 不會出現「有棋譜
     // 沒講評」這種半殘的紀錄
@@ -525,5 +518,107 @@ async function init() {
   // 除錯用，方便在瀏覽器主控台檢查狀態，不影響正常使用
   window.__debug = () => ({ game, status, userColor, movesSan, evals, levelInfo });
 }
+
+// ------------------------------------------------------------- 棋局回放 --
+const replayEl = document.getElementById("replay-board");
+const replayCaption = document.getElementById("replay-caption");
+let replayPositions = [];   // 每一步之後的棋盤陣列(含開局前那格)
+let replayIdx = 0;
+let replayColor = "white";
+let replayTimer = null;
+
+function renderReplay() {
+  const flip = replayColor === "black";
+  renderPieces(replayEl, replayPositions[replayIdx], flip, {});
+  const total = replayPositions.length - 1;
+  replayCaption.textContent = replayIdx === 0
+    ? `開局（共 ${total} 手）`
+    : `第 ${replayIdx} 手 / 共 ${total} 手`;
+}
+
+function openReplay(snapshot) {
+  replayPositions = buildPositions(Chess, snapshot.movesSan);
+  replayIdx = replayPositions.length - 1; // 從結局開始看
+  replayColor = snapshot.userColor;
+  renderReplay();
+  document.getElementById("replay-gif-status").textContent = "";
+  document.getElementById("replay-overlay").classList.remove("hidden");
+}
+
+document.getElementById("result-replay").addEventListener("click", () => {
+  if (!lastGameSnapshot) return;
+  document.getElementById("result-overlay").classList.add("hidden");
+  openReplay(lastGameSnapshot);
+});
+document.getElementById("replay-close").addEventListener("click", () => {
+  clearInterval(replayTimer);
+  replayTimer = null;
+  document.getElementById("replay-overlay").classList.add("hidden");
+});
+document.getElementById("replay-prev").addEventListener("click", () => {
+  replayIdx = Math.max(0, replayIdx - 1);
+  renderReplay();
+});
+document.getElementById("replay-next").addEventListener("click", () => {
+  replayIdx = Math.min(replayPositions.length - 1, replayIdx + 1);
+  renderReplay();
+});
+document.getElementById("replay-play").addEventListener("click", (e) => {
+  if (replayTimer) {
+    clearInterval(replayTimer);
+    replayTimer = null;
+    e.target.textContent = "▶ 播放";
+    return;
+  }
+  if (replayIdx >= replayPositions.length - 1) replayIdx = 0;
+  e.target.textContent = "⏸ 暫停";
+  replayTimer = setInterval(() => {
+    replayIdx++;
+    if (replayIdx >= replayPositions.length) {
+      clearInterval(replayTimer);
+      replayTimer = null;
+      replayIdx = replayPositions.length - 1;
+      e.target.textContent = "▶ 播放";
+    }
+    renderReplay();
+  }, 700);
+});
+
+// --------------------------------------------------- GIF 匯出(存到相簿) --
+document.getElementById("replay-gif").addEventListener("click", () => {
+  const statusEl = document.getElementById("replay-gif-status");
+  statusEl.textContent = "製作 GIF 中…";
+  const SQ = 64;
+  const size = SQ * 8;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+
+  const gif = new GIF({
+    workers: 2,
+    quality: 10,
+    width: size,
+    height: size,
+    workerScript: "gif.worker.js",  // Worker 不能跨網域載入，一定要放同一個網站
+  });
+
+  const flip = replayColor === "black";
+  for (const pos of replayPositions) {
+    drawPositionToCanvas(canvas, pos, flip, SQ);
+    gif.addFrame(canvas, { copy: true, delay: 700 });
+  }
+  // 結局多停留久一點，看得清楚最後結果
+  drawPositionToCanvas(canvas, replayPositions[replayPositions.length - 1], flip, SQ);
+  gif.addFrame(canvas, { copy: true, delay: 2500 });
+
+  gif.on("finished", (blob) => {
+    const url = URL.createObjectURL(blob);
+    // 用開新分頁而不是強制下載 -- iOS Safari 對著圖片長按可以直接「加入照片」，
+    // 存到相簿；用 download 屬性的話只會進 Files，不是相簿
+    window.open(url, "_blank");
+    statusEl.textContent = "完成！長按圖片選「加入照片」就能存到相簿";
+  });
+  gif.render();
+});
 
 init();

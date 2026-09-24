@@ -1,3 +1,5 @@
+const { renderPieces, buildPositions, drawPositionToCanvas } = BoardRender;
+
 async function loadJSON(path) {
   try {
     const res = await fetch(path + "?t=" + Date.now());
@@ -88,12 +90,9 @@ async function loadRating() {
   window.addEventListener("resize", () => drawRatingChart(data.history));
 }
 
-function openOverlay(html) {
-  document.getElementById("overlay-body").innerHTML = html;
-  document.getElementById("overlay").classList.remove("hidden");
-}
-
 function closeOverlay() {
+  clearInterval(replayTimer);
+  replayTimer = null;
   document.getElementById("overlay").classList.add("hidden");
 }
 
@@ -125,18 +124,96 @@ function simpleMarkdownToHtml(md) {
   return html;
 }
 
+// -------------------------------------------------------------- 棋局回放 --
+const overlayBoardEl = document.getElementById("overlay-board");
+const overlayCaption = document.getElementById("overlay-caption");
+let replayPositions = [];
+let replayIdx = 0;
+let replayColor = "white";
+let replayTimer = null;
+
+function renderReplay() {
+  const flip = replayColor === "black";
+  renderPieces(overlayBoardEl, replayPositions[replayIdx], flip, {});
+  const total = replayPositions.length - 1;
+  overlayCaption.textContent = replayIdx === 0
+    ? `開局（共 ${total} 手）`
+    : `第 ${replayIdx} 手 / 共 ${total} 手`;
+}
+
+document.getElementById("overlay-prev").addEventListener("click", () => {
+  replayIdx = Math.max(0, replayIdx - 1);
+  renderReplay();
+});
+document.getElementById("overlay-next").addEventListener("click", () => {
+  replayIdx = Math.min(replayPositions.length - 1, replayIdx + 1);
+  renderReplay();
+});
+document.getElementById("overlay-play").addEventListener("click", (e) => {
+  if (replayTimer) {
+    clearInterval(replayTimer);
+    replayTimer = null;
+    e.target.textContent = "▶ 播放";
+    return;
+  }
+  if (replayIdx >= replayPositions.length - 1) replayIdx = 0;
+  e.target.textContent = "⏸ 暫停";
+  replayTimer = setInterval(() => {
+    replayIdx++;
+    if (replayIdx >= replayPositions.length) {
+      clearInterval(replayTimer);
+      replayTimer = null;
+      replayIdx = replayPositions.length - 1;
+      e.target.textContent = "▶ 播放";
+    }
+    renderReplay();
+  }, 700);
+});
+document.getElementById("overlay-gif").addEventListener("click", () => {
+  const statusEl = document.getElementById("overlay-gif-status");
+  statusEl.textContent = "製作 GIF 中…";
+  const SQ = 64;
+  const size = SQ * 8;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+
+  const gif = new GIF({
+    workers: 2, quality: 10, width: size, height: size,
+    workerScript: "gif.worker.js",  // Worker 不能跨網域載入，一定要放同一個網站
+  });
+  const flip = replayColor === "black";
+  for (const pos of replayPositions) {
+    drawPositionToCanvas(canvas, pos, flip, SQ);
+    gif.addFrame(canvas, { copy: true, delay: 700 });
+  }
+  drawPositionToCanvas(canvas, replayPositions[replayPositions.length - 1], flip, SQ);
+  gif.addFrame(canvas, { copy: true, delay: 2500 });
+
+  gif.on("finished", (blob) => {
+    const url = URL.createObjectURL(blob);
+    window.open(url, "_blank");
+    statusEl.textContent = "完成！長按圖片選「加入照片」就能存到相簿";
+  });
+  gif.render();
+});
+
 async function showGame(game) {
-  openOverlay("<p class='muted'>載入講評中…</p>");
+  document.getElementById("overlay-body").innerHTML = "<p class='muted'>載入講評中…</p>";
+  document.getElementById("overlay-gif-status").textContent = "";
+  document.getElementById("overlay").classList.remove("hidden");
+
+  replayPositions = buildPositions(Chess, game.moves_san);
+  replayIdx = replayPositions.length - 1;
+  replayColor = game.user_color;
+  renderReplay();
+
   try {
     const res = await fetch(game.commentary + "?t=" + Date.now());
     const md = res.ok ? await res.text() : "（沒有講評）";
-    const movesHtml =
-      "<h2>棋譜</h2><p class='small muted'>" +
-      game.moves_san.join(" ") +
-      "</p>";
-    openOverlay(simpleMarkdownToHtml(md) + movesHtml);
+    document.getElementById("overlay-body").innerHTML = simpleMarkdownToHtml(md);
   } catch (e) {
-    openOverlay("<p>載入失敗</p>");
+    document.getElementById("overlay-body").innerHTML = "<p>講評載入失敗</p>";
   }
 }
 
@@ -163,13 +240,21 @@ async function deleteGame(g) {
   }
 }
 
+let lastGamesSignature = "";
+
 async function loadGames() {
   const games = await loadJSON("data/games.json");
   const list = document.getElementById("games-list");
   if (!games || games.length === 0) {
     list.innerHTML = "<p class='muted'>還沒有對局紀錄</p>";
+    lastGamesSignature = "";
     return;
   }
+  // 內容沒變就不要重畫，避免每次輪詢都閃一下、還會打斷正在看的回放
+  const sig = games.map((g) => g.stamp).join(",");
+  if (sig === lastGamesSignature) return;
+  lastGamesSignature = sig;
+
   list.innerHTML = "";
   games
     .slice()
@@ -206,3 +291,12 @@ document.getElementById("overlay").addEventListener("click", (e) => {
 loadModel();
 loadRating();
 loadGames();
+
+// 即時更新：每 20 秒自動重新拉一次資料，不用手動重新整理頁面就能看到
+// 剛存好的新對局(回放彈窗開著的時候不打斷，避免正在看的畫面被蓋掉)
+setInterval(() => {
+  if (!document.getElementById("overlay").classList.contains("hidden")) return;
+  loadModel();
+  loadRating();
+  loadGames();
+}, 20000);
