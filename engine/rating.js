@@ -46,11 +46,28 @@ class RatingTracker {
     this.state.history.push(entry);
     this.state.user_rating = newR;
 
-    const recent = this.state.history.slice(-WINDOW).map((h) => h.result);
-    if (recent.length >= 3) {
-      const avg = recent.reduce((a, b) => a + b, 0) / recent.length;
-      if (avg >= PROMOTE_WINRATE && lvl < LEVELS.length - 1) this.state.level = lvl + 1;
-      else if (avg <= DEMOTE_WINRATE && lvl > 0) this.state.level = lvl - 1;
+    // 難度調整只看「贏/輸」這種決定性結果，和局不算入 -- 之前用全部
+    // 結果(含和局)算平均，兩局和棋就能把平均壓在門檻底下卡住，明明
+    // 打得贏也一直升不了級。如果最近的決定性對局全部都贏，代表現在
+    // 這階已經太簡單，直接跳多階，不要一階一階慢慢爬。
+    const decisive = this.state.history
+      .filter((h) => h.result !== 0.5)
+      .slice(-WINDOW)
+      .map((h) => h.result);
+
+    if (decisive.length >= 2) {
+      const allWins = decisive.every((v) => v === 1);
+      const allLosses = decisive.every((v) => v === 0);
+      if (allWins) {
+        const jump = Math.min(decisive.length, 3);
+        this.state.level = Math.min(lvl + jump, LEVELS.length - 1);
+      } else if (allLosses) {
+        this.state.level = Math.max(lvl - 1, 0);
+      } else {
+        const avg = decisive.reduce((a, b) => a + b, 0) / decisive.length;
+        if (avg >= PROMOTE_WINRATE) this.state.level = Math.min(lvl + 1, LEVELS.length - 1);
+        else if (avg <= DEMOTE_WINRATE) this.state.level = Math.max(lvl - 1, 0);
+      }
     }
     return newR;
   }

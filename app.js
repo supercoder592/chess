@@ -84,6 +84,10 @@ function refreshUI() {
   movesLine.textContent = movesSan.join(" ");
   updateEval(evals.length ? evals[evals.length - 1] : 0);
   ratingLine.textContent = tracker ? tracker.summary().user_rating : "—";
+  if (tracker) {
+    const s = tracker.summary();
+    document.getElementById("level-line").textContent = `${s.level}/${s.level_max}（搜尋 ${s.next_ai_sims} 次）`;
+  }
 
   if (status === "idle") {
     statusLine.textContent = "按下面按鈕開新局";
