@@ -13,26 +13,60 @@ const GH_TOKEN_KEY = "chess_practice_gh_token";
 const GH_REPO_KEY = "chess_practice_gh_repo"; // "owner/repo"
 const GH_RECORD_KEY = "chess_practice_gh_record_enabled";
 
+// 之前這幾個函式完全沒有錯誤處理:如果瀏覽器的隱私設定擋掉 localStorage
+// (iOS Safari「封鎖所有 Cookie」之類的設定就會這樣)，setItem 會直接
+// 丟例外，但呼叫的地方沒有接、也沒有任何提示，使用者存了等於沒存，
+// 畫面上完全看不出來 -- 這就是「明明填了 token 卻沒有用」的真正原因。
+// 現在改成：localStorage 真的被擋掉的話，退回一份只在這次分頁存活的
+// 記憶體備援(至少這次玩還能用)，並且讓呼叫端知道到底有沒有真的存進
+// 「下次打開還在」的地方。
+let memoryFallback = {};
+let storageBlocked = false;
+
+function storageSet(key, value) {
+  try {
+    localStorage.setItem(key, value);
+    return true;
+  } catch (e) {
+    storageBlocked = true;
+    memoryFallback[key] = value;
+    return false;
+  }
+}
+function storageGet(key) {
+  try {
+    const v = localStorage.getItem(key);
+    if (v !== null) return v;
+  } catch (e) {
+    storageBlocked = true;
+  }
+  return Object.prototype.hasOwnProperty.call(memoryFallback, key) ? memoryFallback[key] : null;
+}
+
+function isStorageBlocked() {
+  return storageBlocked;
+}
+
 function getToken() {
-  return localStorage.getItem(GH_TOKEN_KEY) || "";
+  return storageGet(GH_TOKEN_KEY) || "";
 }
 function setToken(t) {
-  localStorage.setItem(GH_TOKEN_KEY, t);
+  return storageSet(GH_TOKEN_KEY, t);
 }
 function getRepo() {
-  return localStorage.getItem(GH_REPO_KEY) || DEFAULT_REPO;
+  return storageGet(GH_REPO_KEY) || DEFAULT_REPO;
 }
 function setRepo(r) {
-  localStorage.setItem(GH_REPO_KEY, r);
+  return storageSet(GH_REPO_KEY, r);
 }
 // 跟有沒有設定 token 分開:想保留 token 但暫時不記錄某幾局的話用這個關掉，
 // 不用把 token 刪掉重填。預設開啟(只要有設定 token/repo)。
 function getRecordEnabled() {
-  const v = localStorage.getItem(GH_RECORD_KEY);
+  const v = storageGet(GH_RECORD_KEY);
   return v === null ? true : v === "1";
 }
 function setRecordEnabled(on) {
-  localStorage.setItem(GH_RECORD_KEY, on ? "1" : "0");
+  return storageSet(GH_RECORD_KEY, on ? "1" : "0");
 }
 
 function utf8ToBase64(str) {
@@ -97,7 +131,7 @@ async function ghDeleteFile(path, message) {
 }
 
 const GithubExports = {
-  getToken, setToken, getRepo, setRepo,
+  getToken, setToken, getRepo, setRepo, isStorageBlocked,
   getRecordEnabled, setRecordEnabled, ghGetFile, ghPutFile, ghDeleteFile,
 };
 if (typeof module !== "undefined") module.exports = GithubExports;

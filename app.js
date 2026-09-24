@@ -414,10 +414,30 @@ document.getElementById("settings-link").addEventListener("click", (e) => {
 document.getElementById("settings-close").addEventListener("click", () => {
   document.getElementById("settings-overlay").classList.add("hidden");
 });
-document.getElementById("settings-save").addEventListener("click", () => {
-  GithubModule.setRepo(document.getElementById("input-repo").value.trim());
-  GithubModule.setToken(document.getElementById("input-token").value.trim());
+document.getElementById("settings-save").addEventListener("click", async () => {
+  const tokenVal = document.getElementById("input-token").value.trim();
+  const repoOk = GithubModule.setRepo(document.getElementById("input-repo").value.trim());
+  const tokenOk = GithubModule.setToken(tokenVal);
   GithubModule.setRecordEnabled(document.getElementById("input-record-enabled").checked);
+
+  if (!repoOk || !tokenOk) {
+    alert("儲存失敗！這個瀏覽器擋掉了本機儲存功能(可能是隱私/無痕模式，"
+         + "或 iOS 的「封鎖所有 Cookie」設定)，設定只能撐到你關掉這個分頁，"
+         + "沒辦法長期記住。請檢查瀏覽器的隱私設定。");
+    return;
+  }
+
+  // 實際打一次 API 驗證 token 真的有效、repo 名稱真的對，不是只存字串
+  // 進去就沒事 -- 存對了不代表 token 是對的
+  if (tokenVal) {
+    try {
+      await GithubModule.ghGetFile("README.md");
+      alert("已儲存，token 驗證成功可以正常使用。");
+    } catch (e) {
+      alert("已存進這台裝置，但拿這個 token 呼叫 GitHub 失敗："
+           + e.message + "\n請檢查 token 有沒有打對、有沒有勾 repo 權限。");
+    }
+  }
   document.getElementById("settings-overlay").classList.add("hidden");
 });
 
@@ -426,21 +446,43 @@ document.getElementById("settings-save").addEventListener("click", () => {
 // ?token=xxx&repo=owner/repo 就存進這支裝置的本機，然後把參數從網址
 // 列清掉，不會留下痕跡。這個連結本身不會進 git，是使用者自己私下保管
 // 的，用來在自己的其他裝置上快速設定，不影響安全性。
-function applyUrlSetup() {
+//
+// 之前這裡存完什麼提示都沒有，存失敗(例如瀏覽器擋掉 localStorage)使用
+// 者完全看不出來，以為設定好了其實沒有 -- 現在改成一定會跳出結果。
+async function applyUrlSetup() {
   const params = new URLSearchParams(window.location.search);
   const token = params.get("token");
   const repo = params.get("repo");
   if (!token && !repo) return;
-  if (token) GithubModule.setToken(token);
-  if (repo) GithubModule.setRepo(repo);
+
+  let ok = true;
+  if (token) ok = GithubModule.setToken(token) && ok;
+  if (repo) ok = GithubModule.setRepo(repo) && ok;
   const url = new URL(window.location.href);
   url.searchParams.delete("token");
   url.searchParams.delete("repo");
   window.history.replaceState({}, document.title, url.pathname + url.hash);
+
+  if (!ok) {
+    alert("設定失敗！這個瀏覽器擋掉了本機儲存功能(可能是隱私/無痕模式，"
+         + "或 iOS 的「封鎖所有 Cookie」設定)，token 沒辦法長期記住，"
+         + "每次重開都要重新用這個連結設定一次。請檢查瀏覽器的隱私設定，"
+         + "或用 Safari 一般模式(不是無痕)打開這個連結。");
+    return;
+  }
+  if (token) {
+    try {
+      await GithubModule.ghGetFile("README.md");
+      alert("設定完成！token 驗證成功，之後這台裝置都會記得，不用再設定。");
+    } catch (e) {
+      alert("token 已存進這台裝置，但呼叫 GitHub 失敗：" + e.message
+           + "\n請確認這串 token 沒有打錯、還沒過期或被撤銷。");
+    }
+  }
 }
 
 async function init() {
-  applyUrlSetup();
+  await applyUrlSetup();
   tracker = new RatingModule.RatingTracker(loadTrackerLocal());
   game = new Chess();
   refreshUI();
