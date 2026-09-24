@@ -1,0 +1,7 @@
+[Event "西洋棋 AI 練習場"]
+[Date "2026.09.24"]
+[White "AI"]
+[Black "使用者"]
+[Result "0-1"]
+
+1. d4 d5 2. Kd2 e5 3. Nf3 exd4 4. b3 c5 5. b4 cxb4 6. Kd3 Bg4 7. Kd2 Bxf3 8. exf3 Qg5+ 9. Kd3 Na6 10. Bb2 Rd8 11. g4 f5 12. gxf5 g6 13. Ba3 gxf5 14. Bb2 f4 15. Ba3 h5 16. Nc3 h4 17. Be2 h3 18. Bb2 Rh6 19. Kd2 Re6 20. Kd3 dxc3 21. Bf1 cxb2 22. a3 bxa1=Q 23. c4 Qxd1# 0-1
