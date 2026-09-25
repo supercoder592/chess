@@ -1,10 +1,10 @@
 {
  "summary": {
-  "user_rating": 1003.9,
-  "games": 11,
-  "level": 11,
+  "user_rating": 1019.8,
+  "games": 12,
+  "level": 12,
   "level_max": 12,
-  "next_ai_sims": 768
+  "next_ai_sims": 1024
  },
  "history": [
   {
@@ -138,6 +138,18 @@
    "user_rating_after": 1003.9,
    "user_color": "black",
    "plies": 82
+  },
+  {
+   "game": 12,
+   "t": 1790325455.948,
+   "result": 0.5,
+   "level": 11,
+   "sims": 768,
+   "ai_rating": 2030,
+   "user_rating_before": 1003.9,
+   "user_rating_after": 1019.8,
+   "user_color": "black",
+   "plies": 72
   }
  ]
 }
