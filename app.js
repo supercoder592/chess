@@ -25,8 +25,6 @@ function taiwanDisplay(d) {
        + `${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())}`;
 }
 
-let ortSession = null;
-let mcts = null;
 let game = null;
 let historyMap = new Map();
 let tracker = null;
@@ -51,17 +49,32 @@ const evalFill = document.getElementById("eval-fill");
 const evalText = document.getElementById("eval-text");
 const ratingLine = document.getElementById("rating-line");
 
-// ------------------------------------------------------------ model I/O --
-async function evaluateOnce(planes) {
-  const tensor = new ort.Tensor("float32", planes, [1, 21, 8, 8]);
-  const out = await ortSession.run({ input: tensor });
-  return { policyLogits: out.policy.data, value: out.value.data[0] };
+// ------------------------------------------------------------ AI 引擎 --
+// 推論跟搜尋都在 engine/worker.js 裡跑，這裡只用訊息叫它做事。
+let engine = null;
+let engineSeq = 0;
+const enginePending = new Map();
+
+function engineCall(type, payload) {
+  const id = ++engineSeq;
+  return new Promise((resolve, reject) => {
+    enginePending.set(id, { resolve, reject });
+    engine.postMessage(Object.assign({ id, type }, payload || {}));
+  });
+}
+
+function uciHistory() {
+  return game.history({ verbose: true }).map((m) => m.from + m.to + (m.promotion || ""));
 }
 
 async function quickEval() {
-  const planes = Encoding.encodeBoard(game, false, false);
-  const { value } = await evaluateOnce(planes);
-  return game.turn() === "w" ? value : -value;
+  const { value } = await engineCall("eval", { moves: uciHistory() });
+  return value;
+}
+
+async function aiChooseMove(sims, temp) {
+  const { uci } = await engineCall("search", { moves: uciHistory(), sims, temp });
+  return uci;
 }
 
 // ---------------------------------------------------------------- board --
@@ -201,8 +214,7 @@ async function playUserMove(moveObj) {
   aiThinking = true;
   refreshUI();
   const { sims, temp } = levelInfo;
-  const root = await mcts.search(game, historyMap, sims);
-  const uci = mcts.pick(root, temp);
+  const uci = await aiChooseMove(sims, temp);
   await animateHandMove(uci.slice(0, 2), uci.slice(2, 4));
   const aiMv = game.move({ from: uci.slice(0, 2), to: uci.slice(2, 4), promotion: uci[4] });
   movesSan.push(aiMv.san);
@@ -281,8 +293,7 @@ async function newGame(color) {
   if (userColor === "black") {
     aiThinking = true;
     refreshUI();
-    const root = await mcts.search(game, historyMap, levelInfo.sims);
-    const uci = mcts.pick(root, levelInfo.temp);
+    const uci = await aiChooseMove(levelInfo.sims, levelInfo.temp);
     await animateHandMove(uci.slice(0, 2), uci.slice(2, 4));
     const mv = game.move({ from: uci.slice(0, 2), to: uci.slice(2, 4), promotion: uci[4] });
     movesSan.push(mv.san);
@@ -514,8 +525,18 @@ async function init() {
   refreshUI();
 
   statusLine.textContent = "載入模型中…（第一次會比較久，之後瀏覽器會快取）";
-  ortSession = await ort.InferenceSession.create("model.onnx");
-  mcts = new MCTS(evaluateOnce);
+  engine = new Worker("engine/worker.js", { type: "module" });
+  engine.onmessage = (e) => {
+    const p = enginePending.get(e.data.id);
+    if (!p) return;
+    enginePending.delete(e.data.id);
+    if (e.data.ok) p.resolve(e.data);
+    else p.reject(new Error(e.data.error));
+  };
+  engine.onerror = (e) => {
+    statusLine.textContent = "AI 引擎載入失敗：" + (e.message || "未知錯誤");
+  };
+  await engineCall("init", { modelUrl: new URL("model.onnx", location.href).href });
   evals = [await quickEval()];
   status = "idle";
   refreshUI();

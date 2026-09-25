@@ -150,6 +150,4 @@ const EncodingExports = {
 if (typeof module !== "undefined") {
   module.exports = EncodingExports;
 }
-if (typeof window !== "undefined") {
-  window.Encoding = EncodingExports;
-}
+globalThis.Encoding = EncodingExports;   // 主頁面跟 Web Worker 都用得到

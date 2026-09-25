@@ -1,16 +1,19 @@
-// 瀏覽器版 PUCT MCTS。跟 chessai/mcts.py 的邏輯對應，但因為瀏覽器是
-// 單執行緒、ONNX Runtime Web 呼叫是非同步的，這裡用序列(一次一個
-// 模擬)而不是批次 -- 犧牲一點速度換取程式碼簡單、好對照驗證正確性。
-// 不含 virtual loss(那是給平行批次用的，序列模擬用不到)。
+// 瀏覽器版 PUCT MCTS。跟 chessai/mcts.py 一樣是「批次 + virtual loss」：
+// 一次選出 BATCH 個葉節點，一起丟給網路算，ONNX Runtime 的呼叫次數少
+// 好幾倍 -- 對小網路來說每次呼叫的固定開銷才是大頭，所以這樣快很多，
+// 搜尋次數完全一樣。virtual loss 讓同一批裡的路徑彼此避開。
+// 在 Web Worker 裡跑，主畫面不會被卡住。
 
 const C_PUCT = 1.8;
 const FPU = 0.25;
+const BATCH = 8;
 
 class Node {
   constructor(prior) {
     this.prior = prior || 0;
     this.visits = 0;
     this.valueSum = 0;
+    this.vloss = 0;
     this.children = null; // Map<uci, {node, move}> | null(未展開)
   }
   get q() {
@@ -34,17 +37,17 @@ function terminalValue(game, rep) {
 }
 
 class MCTS {
-  constructor(evaluate) {
-    this.evaluate = evaluate; // async (Float32Array planes) -> {policyLogits, value}
+  // evaluateBatch: async (Float32Array[] planesList) -> { policies: Float32Array[], values: number[] }
+  constructor(evaluateBatch, batchSize) {
+    this.evaluateBatch = evaluateBatch;
+    this.batchSize = batchSize || BATCH;
   }
 
-  expand(node, game, policyLogits) {
-    const moves = game.moves({ verbose: true });
+  expand(node, moves, flip, policyLogits) {
     if (moves.length === 0) {
       node.children = new Map();
       return;
     }
-    const flip = game.turn() === "b";
     const idxs = moves.map((m) => Encoding.moveToIndex(m, flip));
     const logits = idxs.map((i) => policyLogits[i]);
     const maxLogit = Math.max(...logits);
@@ -57,79 +60,88 @@ class MCTS {
     });
   }
 
-  selectChild(node) {
-    const sqrtTotal = Math.sqrt(Math.max(node.visits, 1));
-    const parentQ = node.q;
-    let bestUci = null, bestChild = null, bestScore = -Infinity;
-    for (const [uci, entry] of node.children) {
-      const child = entry.node;
-      const n = child.visits;
-      const q = n > 0 ? -child.q : -parentQ - FPU;
-      const score = q + C_PUCT * child.prior * sqrtTotal / (1 + n);
-      if (score > bestScore) {
-        bestScore = score;
-        bestUci = uci;
-        bestChild = entry;
+  select(game, root, historyMap) {
+    const path = [root];
+    const counts = new Map();
+    let node = root;
+    let steps = 0;
+    while (node.children !== null && node.children.size > 0) {
+      const sqrtTotal = Math.sqrt(Math.max(node.visits + node.vloss, 1));
+      const parentQ = node.q;
+      let bestUci = null, best = null, bestScore = -Infinity;
+      for (const [uci, entry] of node.children) {
+        const child = entry.node;
+        const n = child.visits + child.vloss;
+        const q = n > 0 ? -child.q : -parentQ - FPU;
+        const score = q + C_PUCT * child.prior * sqrtTotal / (1 + n);
+        if (score > bestScore) {
+          bestScore = score;
+          bestUci = uci;
+          best = entry;
+        }
       }
+      game.move({ from: bestUci.slice(0, 2), to: bestUci.slice(2, 4), promotion: bestUci[4] });
+      steps++;
+      const key = transKey(game);
+      counts.set(key, (counts.get(key) || 0) + 1);
+      node = best.node;
+      path.push(node);
     }
-    return { uci: bestUci, entry: bestChild };
+    for (const n of path) n.vloss += 1;
+    const key = transKey(game);
+    const rep = (historyMap.get(key) || 0) + (counts.get(key) || 0);
+    return { path, rep, steps };
+  }
+
+  backup(path, value) {
+    let v = value;
+    for (let k = path.length - 1; k >= 0; k--) {
+      path[k].vloss -= 1;
+      path[k].visits += 1;
+      path[k].valueSum += v;
+      v = -v;
+    }
   }
 
   async search(game, historyMap, simulations) {
-    const rootKey = transKey(game);
-    const rootRep = historyMap.get(rootKey) || 0;
-    const planes = Encoding.encodeBoard(game, rootRep >= 1, rootRep >= 2);
-    const { policyLogits, value } = await this.evaluate(planes);
     const root = new Node();
-    this.expand(root, game, policyLogits);
-    root.visits = 1;
-    root.valueSum = value;
+    const rootRep = historyMap.get(transKey(game)) || 0;
+    const rootPlanes = Encoding.encodeBoard(game, rootRep >= 1, rootRep >= 2);
+    const first = await this.evaluateBatch([rootPlanes]);
+    this.expand(root, game.moves({ verbose: true }), game.turn() === "b", first.policies[0]);
+    root.vloss += 1;
+    this.backup([root], first.values[0]);
 
-    for (let i = 0; i < simulations; i++) {
-      const path = [root];
-      const localCounts = new Map();
-      let node = root;
-      let steps = 0;
-
-      while (node.children !== null && node.children.size > 0) {
-        const { uci, entry } = this.selectChild(node);
-        if (!entry) break;
-        game.move({ from: uci.slice(0, 2), to: uci.slice(2, 4), promotion: uci[4] });
-        const key = transKey(game);
-        localCounts.set(key, (localCounts.get(key) || 0) + 1);
-        node = entry.node;
-        path.push(node);
-        steps++;
-      }
-
-      const key = transKey(game);
-      const rep = (historyMap.get(key) || 0) + (localCounts.get(key) || 0);
-      let leafValue;
-      if (node.children !== null) {
-        // 已經展開過但沒有子節點 = 終局節點，重算它的終局價值
-        leafValue = terminalValue(game, rep) || 0.0;
-      } else {
-        const tv = terminalValue(game, rep);
-        if (tv !== null) {
-          node.children = new Map();
-          leafValue = tv;
+    while (root.visits < simulations) {
+      const want = Math.min(this.batchSize, simulations - root.visits);
+      const pending = [], paths = [], leafMoves = [], leafFlips = [];
+      for (let i = 0; i < want; i++) {
+        const { path, rep, steps } = this.select(game, root, historyMap);
+        const leaf = path[path.length - 1];
+        if (leaf.children !== null) {
+          // 已經展開過但沒有子節點 = 終局節點，重算它的終局價值
+          this.backup(path, terminalValue(game, rep) || 0.0);
         } else {
-          const leafPlanes = Encoding.encodeBoard(game, rep >= 1, rep >= 2);
-          const res = await this.evaluate(leafPlanes);
-          this.expand(node, game, res.policyLogits);
-          leafValue = res.value;
+          const tv = terminalValue(game, rep);
+          if (tv !== null) {
+            leaf.children = new Map();
+            this.backup(path, tv);
+          } else {
+            pending.push(Encoding.encodeBoard(game, rep >= 1, rep >= 2));
+            paths.push(path);
+            leafMoves.push(game.moves({ verbose: true }));
+            leafFlips.push(game.turn() === "b");
+          }
         }
+        for (let k = 0; k < steps; k++) game.undo();
       }
-
-      let v = leafValue;
-      for (let k = path.length - 1; k >= 0; k--) {
-        path[k].visits += 1;
-        path[k].valueSum += v;
-        v = -v;
+      if (pending.length === 0) continue;
+      const { policies, values } = await this.evaluateBatch(pending);
+      for (let i = 0; i < pending.length; i++) {
+        this.expand(paths[i][paths[i].length - 1], leafMoves[i], leafFlips[i], policies[i]);
+        this.backup(paths[i], values[i]);
       }
-      for (let k = 0; k < steps; k++) game.undo();
     }
-
     return root;
   }
 
@@ -166,6 +178,8 @@ class MCTS {
   }
 }
 
+const MCTSExports = { MCTS, Node, transKey, terminalValue };
 if (typeof module !== "undefined") {
-  module.exports = { MCTS, Node, transKey, terminalValue };
+  module.exports = MCTSExports;
 }
+globalThis.MCTSModule = MCTSExports;
