@@ -270,8 +270,10 @@ async function loadGames() {
           <button class="delete-btn" title="刪除這局">🗑</button>
         </div>
         <div class="game-meta">
-          ${colorLabel} · ${g.plies} 手 · 難度階 ${g.level}
-          · 棋力 ${Math.round(g.rating_before)} → ${Math.round(g.rating_after)}
+          ${g.mode === "pvp"
+            ? `雙人對戰 · ${colorLabel} · ${g.plies} 手 · AI 只講評`
+            : `${colorLabel} · ${g.plies} 手 · 難度階 ${g.level}
+          · 棋力 ${Math.round(g.rating_before)} → ${Math.round(g.rating_after)}`}
         </div>
       `;
       el.addEventListener("click", () => showGame(g));

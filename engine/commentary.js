@@ -5,10 +5,15 @@ function generateCommentary(movesSan, evals, userColor, resultText,
   const lines = [];
   lines.push("# 對局講評\n");
   lines.push(`- 結果：${resultText}`);
-  const delta = ratingAfter - ratingBefore;
-  lines.push(`- 使用者棋力：${ratingBefore.toFixed(0)} → ${ratingAfter.toFixed(0)}` +
-             `（${delta >= 0 ? "+" : ""}${delta.toFixed(1)}）`);
-  lines.push(`- AI 這局用的搜尋量：${levelInfo.sims}（第 ${levelInfo.level} 階）\n`);
+  if (levelInfo && levelInfo.mode === "pvp") {
+    lines.push("- 模式：雙人對戰（AI 只講評、不下棋，不計入棋力）");
+    lines.push(`- 使用者執${userColor === "white" ? "白" : "黑"}\n`);
+  } else {
+    const delta = ratingAfter - ratingBefore;
+    lines.push(`- 使用者棋力：${ratingBefore.toFixed(0)} → ${ratingAfter.toFixed(0)}` +
+               `（${delta >= 0 ? "+" : ""}${delta.toFixed(1)}）`);
+    lines.push(`- AI 這局用的搜尋量：${levelInfo.sims}（第 ${levelInfo.level} 階）\n`);
+  }
 
   const swings = [];
   for (let i = 1; i < evals.length; i++) {

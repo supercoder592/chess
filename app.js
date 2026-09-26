@@ -30,6 +30,7 @@ let historyMap = new Map();
 let tracker = null;
 
 let userColor = "white";
+let mode = "ai";      // "ai"：跟 AI 下；"pvp"：兩個人輪流用同一支手機下，AI 只講評、記錄
 let status = "idle";
 let movesSan = [];
 let evals = [];
@@ -107,7 +108,11 @@ function refreshUI() {
   } else if (status === "playing") {
     const turnLabel = game.turn() === "w" ? "白方" : "黑方";
     const userTurn = (game.turn() === "w") === (userColor === "white");
-    statusLine.textContent = aiThinking ? "AI 思考中…" : userTurn ? "輪到你了" : `輪到 ${turnLabel}`;
+    if (mode === "pvp") {
+      statusLine.textContent = `雙人對戰：輪到${turnLabel}${userTurn ? "（你）" : "（朋友）"}`;
+    } else {
+      statusLine.textContent = aiThinking ? "AI 思考中…" : userTurn ? "輪到你了" : `輪到 ${turnLabel}`;
+    }
   } else if (status === "finished") {
     statusLine.textContent = "對局結束";
   }
@@ -117,7 +122,7 @@ function refreshUI() {
 function onSquareClick(name, cell) {
   if (!game || status !== "playing" || aiThinking) return;
   const userTurn = (game.turn() === "w") === (userColor === "white");
-  if (!userTurn) return;
+  if (mode !== "pvp" && !userTurn) return;
 
   if (selected) {
     const target = legalFromSel.find((m) => m.to === name);
@@ -138,7 +143,9 @@ function onSquareClick(name, cell) {
     legalFromSel = [];
   }
 
-  const belongsToUser = cell && (userColor === "white" ? cell.color === "w" : cell.color === "b");
+  // 雙人對戰時輪到誰就能動誰的棋子；跟 AI 下時只能動自己的
+  const sideColor = mode === "pvp" ? game.turn() : (userColor === "white" ? "w" : "b");
+  const belongsToUser = cell && cell.color === sideColor;
   if (belongsToUser) {
     selected = name;
     legalFromSel = game.moves({ square: name, verbose: true });
@@ -210,6 +217,7 @@ async function playUserMove(moveObj) {
   refreshUI();
 
   if (await checkGameOver()) return;
+  if (mode === "pvp") return;          // 換朋友走，AI 不下棋
 
   aiThinking = true;
   refreshUI();
@@ -245,8 +253,12 @@ let lastGameSnapshot = null; // 給「看棋局回放」按鈕用
 
 async function finishGame(resultText, userScore, pgnResult) {
   status = "finished";
-  ratingAfter = tracker.recordResult(userScore, { user_color: userColor, plies: movesSan.length });
-  saveTrackerLocal();
+  if (mode === "pvp") {
+    ratingAfter = ratingBefore;        // 雙人對戰不計入棋力，也不影響 AI 難度
+  } else {
+    ratingAfter = tracker.recordResult(userScore, { user_color: userColor, plies: movesSan.length });
+    saveTrackerLocal();
+  }
   refreshUI();
 
   // 把這局需要存檔的資料整個拷貝一份，不要依賴共用的全域變數 --
@@ -258,7 +270,7 @@ async function finishGame(resultText, userScore, pgnResult) {
   const snapshot = {
     movesSan: movesSan.slice(),
     evals: evals.slice(),
-    userColor, levelInfo: { ...levelInfo },
+    userColor, mode, levelInfo: { ...levelInfo, mode },
     ratingBefore, ratingAfter,
     resultText, userScore, pgnResult,
   };
@@ -274,9 +286,10 @@ async function finishGame(resultText, userScore, pgnResult) {
 }
 
 // -------------------------------------------------------------- new game --
-async function newGame(color) {
+async function newGame(color, newMode = "ai") {
   if (color === "random") color = Math.random() < 0.5 ? "white" : "black";
   userColor = color;
+  mode = newMode;
   game = new Chess();
   historyMap = new Map();
   bumpHistory();
@@ -290,7 +303,7 @@ async function newGame(color) {
   levelInfo = tracker.currentLevelParams();
   refreshUI();
 
-  if (userColor === "black") {
+  if (userColor === "black" && mode !== "pvp") {
     aiThinking = true;
     refreshUI();
     const uci = await aiChooseMove(levelInfo.sims, levelInfo.temp);
@@ -307,12 +320,20 @@ async function newGame(color) {
 document.getElementById("btn-new-white").addEventListener("click", () => newGame("white"));
 document.getElementById("btn-new-black").addEventListener("click", () => newGame("black"));
 document.getElementById("btn-new-random").addEventListener("click", () => newGame("random"));
+document.getElementById("btn-pvp-white").addEventListener("click", () => newGame("white", "pvp"));
+document.getElementById("btn-pvp-black").addEventListener("click", () => newGame("black", "pvp"));
 document.getElementById("btn-resign").addEventListener("click", async () => {
-  if (status !== "playing" || !confirm("確定要認輸嗎？")) return;
-  const loser = userColor;
-  const resultText = `${loser === "white" ? "黑方" : "白方"}獲勝（你認輸了）`;
+  if (status !== "playing") return;
+  // 雙人對戰：輪到誰、誰認輸
+  const loser = mode === "pvp" ? (game.turn() === "w" ? "white" : "black") : userColor;
+  const who = mode === "pvp" ? `${loser === "white" ? "白方" : "黑方"}要認輸嗎？` : "確定要認輸嗎？";
+  if (!confirm(who)) return;
+  const winnerLabel = loser === "white" ? "黑方" : "白方";
+  const resultText = mode === "pvp"
+    ? `${winnerLabel}獲勝（${loser === "white" ? "白方" : "黑方"}認輸）`
+    : `${winnerLabel}獲勝（你認輸了）`;
   const pgnResult = loser === "white" ? "0-1" : "1-0";
-  await finishGame(resultText, 0.0, pgnResult);
+  await finishGame(resultText, loser === userColor ? 0.0 : 1.0, pgnResult);
 });
 
 function simpleMarkdownToHtml(md) {
@@ -375,8 +396,9 @@ async function ghPutFileRetry(path, content, message, tries = 2) {
 // snapshot: finishGame() 存的那份獨立拷貝，全程只用這個，不碰全域變數，
 // 使用者手速再快、馬上開新局，也不會弄壞正在傳的這一局。
 async function trySaveToGithub(snapshot) {
-  const { movesSan, evals, userColor, levelInfo, ratingBefore, ratingAfter,
+  const { movesSan, evals, userColor, mode, levelInfo, ratingBefore, ratingAfter,
          resultText, userScore, pgnResult, commentary } = snapshot;
+  const opponent = mode === "pvp" ? "朋友" : "AI";
   const statusEl = document.getElementById("result-save-status");
   if (!GithubModule.getToken() || !GithubModule.getRepo()) {
     statusEl.textContent = "（沒設定 GitHub，只存在這台裝置）";
@@ -396,8 +418,8 @@ async function trySaveToGithub(snapshot) {
     const replay = new Chess();
     replay.header("Event", "西洋棋 AI 練習場",
       "Date", `${now.getUTCFullYear()}.${pad2(now.getUTCMonth() + 1)}.${pad2(now.getUTCDate())}`,
-      "White", userColor === "white" ? "使用者" : "AI",
-      "Black", userColor === "white" ? "AI" : "使用者",
+      "White", userColor === "white" ? "使用者" : opponent,
+      "Black", userColor === "white" ? opponent : "使用者",
       "Result", pgnResult);
     for (const san of movesSan) replay.move(san);
     const pgn = replay.pgn();
@@ -412,16 +434,19 @@ async function trySaveToGithub(snapshot) {
     games.push({
       stamp, date: taiwanDisplay(now),
       pgn: `games/${stamp}.pgn`, commentary: `games/${stamp}_commentary.md`,
-      result: resultText, user_color: userColor, user_score: userScore,
+      result: resultText, user_color: userColor, user_score: userScore, mode,
       plies: movesSan.length, rating_before: ratingBefore, rating_after: ratingAfter,
-      level: levelInfo.level, sims: levelInfo.sims, moves_san: movesSan,
+      level: mode === "pvp" ? null : levelInfo.level,
+      sims: mode === "pvp" ? null : levelInfo.sims, moves_san: movesSan,
     });
     await ghPutFileRetry("data/games.json", JSON.stringify(games, null, 1),
-      `對局記錄 ${stamp}（棋力 ${ratingAfter.toFixed(0)}）`);
+      mode === "pvp" ? `雙人對戰記錄 ${stamp}` : `對局記錄 ${stamp}（棋力 ${ratingAfter.toFixed(0)}）`);
 
-    await ghPutFileRetry("data/rating.json",
-      JSON.stringify({ summary: tracker.summary(), history: tracker.state.history }, null, 1),
-      `更新棋力進度（${ratingAfter.toFixed(0)}）`);
+    if (mode !== "pvp") {
+      await ghPutFileRetry("data/rating.json",
+        JSON.stringify({ summary: tracker.summary(), history: tracker.state.history }, null, 1),
+        `更新棋力進度（${ratingAfter.toFixed(0)}）`);
+    }
 
     statusEl.textContent = "已記錄到 GitHub";
   } catch (e) {
@@ -541,7 +566,7 @@ async function init() {
   status = "idle";
   refreshUI();
   // 除錯用，方便在瀏覽器主控台檢查狀態，不影響正常使用
-  window.__debug = () => ({ game, status, userColor, movesSan, evals, levelInfo });
+  window.__debug = () => ({ game, status, userColor, mode, movesSan, evals, levelInfo });
 }
 
 // ------------------------------------------------------------- 棋局回放 --
