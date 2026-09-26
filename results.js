@@ -169,9 +169,10 @@ document.getElementById("overlay-play").addEventListener("click", (e) => {
     renderReplay();
   }, 700);
 });
-document.getElementById("overlay-gif").addEventListener("click", () => {
+document.getElementById("overlay-gif").addEventListener("click", async () => {
   const statusEl = document.getElementById("overlay-gif-status");
   statusEl.textContent = "製作 GIF 中…";
+  const images = await BoardRender.loadPieceImages();
   const SQ = 64;
   const size = SQ * 8;
   const canvas = document.createElement("canvas");
@@ -184,10 +185,10 @@ document.getElementById("overlay-gif").addEventListener("click", () => {
   });
   const flip = replayColor === "black";
   for (const pos of replayPositions) {
-    drawPositionToCanvas(canvas, pos, flip, SQ);
+    drawPositionToCanvas(canvas, pos, flip, SQ, images);
     gif.addFrame(canvas, { copy: true, delay: 700 });
   }
-  drawPositionToCanvas(canvas, replayPositions[replayPositions.length - 1], flip, SQ);
+  drawPositionToCanvas(canvas, replayPositions[replayPositions.length - 1], flip, SQ, images);
   gif.addFrame(canvas, { copy: true, delay: 2500 });
 
   gif.on("finished", (blob) => {

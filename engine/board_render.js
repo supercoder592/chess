@@ -5,6 +5,26 @@ const PIECE_UNICODE = {
   p: "♙", n: "♘", b: "♗", r: "♖", q: "♕", k: "♔",
 };
 
+// 棋子用 SVG 圖(cburnett 棋子組)，不用 Unicode 字元：手機上字元會被當成
+// emoji 畫出來、CSS 顏色失效，黑白兩邊看起來一樣
+function pieceImageUrl(color, type) {
+  return `pieces/${color}${type.toUpperCase()}.svg`;
+}
+
+let _pieceImages = null;
+function loadPieceImages() {
+  if (_pieceImages) return _pieceImages;
+  _pieceImages = Promise.all(
+    ["w", "b"].flatMap((c) => ["p", "n", "b", "r", "q", "k"].map((t) => new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => resolve([c + t, img]);
+      img.onerror = () => resolve([c + t, null]);
+      img.src = pieceImageUrl(c, t);
+    })))
+  ).then((pairs) => Object.fromEntries(pairs));
+  return _pieceImages;
+}
+
 function squareName(file, rank) {
   return "abcdefgh"[file] + (rank + 1);
 }
@@ -26,7 +46,7 @@ function renderPieces(el, boardArray, flip, opts) {
       if (cell) {
         const span = document.createElement("span");
         span.className = "piece " + (cell.color === "w" ? "white" : "black");
-        span.textContent = PIECE_UNICODE[cell.type];
+        span.style.backgroundImage = `url(${pieceImageUrl(cell.color, cell.type)})`;
         sq.appendChild(span);
       }
       if (opts.selected === name) sq.classList.add("selected");
@@ -50,7 +70,7 @@ function buildPositions(Chess, movesSan) {
 const LIGHT_SQ = "#e9dcc3";
 const DARK_SQ = "#7d6a54";
 
-function drawPositionToCanvas(canvas, boardArray, flip, sq) {
+function drawPositionToCanvas(canvas, boardArray, flip, sq, images) {
   const ctx = canvas.getContext("2d");
   ctx.font = `${Math.floor(sq * 0.72)}px "Segoe UI Symbol", "Apple Color Emoji", sans-serif`;
   ctx.textAlign = "center";
@@ -64,7 +84,10 @@ function drawPositionToCanvas(canvas, boardArray, flip, sq) {
       ctx.fillStyle = light ? LIGHT_SQ : DARK_SQ;
       ctx.fillRect(x, y, sq, sq);
       const cell = boardArray[7 - rank][file];
-      if (cell) {
+      const img = cell && images ? images[cell.color + cell.type] : null;
+      if (img) {
+        ctx.drawImage(img, x + sq * 0.05, y + sq * 0.05, sq * 0.9, sq * 0.9);
+      } else if (cell) {
         ctx.fillStyle = cell.color === "w" ? "#ffffff" : "#000000";
         ctx.strokeStyle = cell.color === "w" ? "#000000" : "#dddddd";
         ctx.lineWidth = 2;
@@ -77,7 +100,8 @@ function drawPositionToCanvas(canvas, boardArray, flip, sq) {
 }
 
 const BoardRender = {
-  PIECE_UNICODE, squareName, renderPieces, buildPositions, drawPositionToCanvas,
+  PIECE_UNICODE, pieceImageUrl, loadPieceImages, squareName, renderPieces, buildPositions,
+  drawPositionToCanvas,
 };
 if (typeof module !== "undefined") module.exports = BoardRender;
 if (typeof window !== "undefined") window.BoardRender = BoardRender;

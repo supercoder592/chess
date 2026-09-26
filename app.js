@@ -195,7 +195,7 @@ function animateHandMove(fromSq, toSq, durationMs = 360) {
     hand.innerHTML =
       `<div class="lift-wrap">` +
       `<span class="piece-shadow"></span>` +
-      `<span class="hand-piece ${colourClass}">${PIECE_UNICODE[piece.type]}</span>` +
+      `<span class="hand-piece ${colourClass}" style="background-image:url(${BoardRender.pieceImageUrl(piece.color, piece.type)})"></span>` +
       `<span class="hand-icon">🤏</span>` +
       `</div>`;
     hand.style.left = from.x + "px";
@@ -635,9 +635,10 @@ document.getElementById("replay-play").addEventListener("click", (e) => {
 });
 
 // --------------------------------------------------- GIF 匯出(存到相簿) --
-document.getElementById("replay-gif").addEventListener("click", () => {
+document.getElementById("replay-gif").addEventListener("click", async () => {
   const statusEl = document.getElementById("replay-gif-status");
   statusEl.textContent = "製作 GIF 中…";
+  const images = await BoardRender.loadPieceImages();
   const SQ = 64;
   const size = SQ * 8;
   const canvas = document.createElement("canvas");
@@ -654,11 +655,11 @@ document.getElementById("replay-gif").addEventListener("click", () => {
 
   const flip = replayColor === "black";
   for (const pos of replayPositions) {
-    drawPositionToCanvas(canvas, pos, flip, SQ);
+    drawPositionToCanvas(canvas, pos, flip, SQ, images);
     gif.addFrame(canvas, { copy: true, delay: 700 });
   }
   // 結局多停留久一點，看得清楚最後結果
-  drawPositionToCanvas(canvas, replayPositions[replayPositions.length - 1], flip, SQ);
+  drawPositionToCanvas(canvas, replayPositions[replayPositions.length - 1], flip, SQ, images);
   gif.addFrame(canvas, { copy: true, delay: 2500 });
 
   gif.on("finished", (blob) => {

@@ -168,8 +168,14 @@ footer { text-align: center; padding: 20px; }
 @media (min-width: 480px) { .sq { font-size: 32px; } }
 .sq.light { background: #e9dcc3; }
 .sq.dark { background: #7d6a54; }
-.piece.white { color: #ffffff; text-shadow: 0 0 2px #000, 0 0 1px #000; }
-.piece.black { color: #000000; text-shadow: 0 0 2px #ddd; }
+.sq .piece {
+  display: block;
+  width: 92%;
+  height: 92%;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+}
 
 #overlay-caption { text-align: center; margin: 8px 0; min-height: 1.3em; }
 
