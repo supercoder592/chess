@@ -466,6 +466,30 @@ document.getElementById("settings-link").addEventListener("click", (e) => {
 document.getElementById("settings-close").addEventListener("click", () => {
   document.getElementById("settings-overlay").classList.add("hidden");
 });
+// 棋力紀錄以這台裝置為準、GitHub 只是備份；在紀錄頁刪掉幾局之後，或換了
+// 裝置，就用這顆把 GitHub 上的版本拉回來覆蓋本機
+document.getElementById("settings-restore-rating").addEventListener("click", async () => {
+  if (!GithubModule.getToken() || !GithubModule.getRepo()) {
+    alert("先設定 GitHub repo 和 token");
+    return;
+  }
+  if (!confirm("會用 GitHub 上的棋力紀錄覆蓋這台裝置目前的棋力、難度階和歷史，確定？")) return;
+  try {
+    const f = await GithubModule.ghGetFile("data/rating.json");
+    if (!f) { alert("GitHub 上還沒有棋力紀錄"); return; }
+    const data = JSON.parse(f.content);
+    tracker = new RatingModule.RatingTracker({
+      user_rating: data.summary.user_rating, level: data.summary.level,
+      games: data.summary.games, history: data.history || [],
+    });
+    saveTrackerLocal();
+    refreshUI();
+    alert(`已還原：棋力 ${data.summary.user_rating}、第 ${data.summary.level} 階、${data.summary.games} 局`);
+  } catch (err) {
+    alert("還原失敗：" + (err && err.message ? err.message : err));
+  }
+});
+
 document.getElementById("settings-save").addEventListener("click", async () => {
   const tokenVal = document.getElementById("input-token").value.trim();
   const repoOk = GithubModule.setRepo(document.getElementById("input-repo").value.trim());
