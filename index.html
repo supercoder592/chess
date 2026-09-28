@@ -8,22 +8,45 @@
 </head>
 <body>
   <header>
-    <h1>♟ 跟 AI 下棋</h1>
+    <h1 id="page-title">♟ 西洋棋練習場</h1>
     <p id="status-line" class="sub">載入模型中…</p>
   </header>
 
-  <main>
+  <!-- 主畫面：三種玩法 -->
+  <main id="home-view">
+    <button class="mode-card" data-mode="pvp">
+      <span class="mode-icon">👥</span>
+      <span class="mode-name">人對人</span>
+      <span class="mode-desc">兩個人用同一支手機輪流下，AI 講評、記錄，不下棋</span>
+    </button>
+    <button class="mode-card" data-mode="ai">
+      <span class="mode-icon">🤖</span>
+      <span class="mode-name">人對電腦</span>
+      <span class="mode-desc">照你的棋力自動調難度，會記錄棋譜和棋力進度</span>
+    </button>
+    <button class="mode-card boss" data-mode="boss">
+      <span class="mode-icon">👹</span>
+      <span class="mode-name">魔王關</span>
+      <span class="mode-desc">最強的 AI，全力搜尋。不記錄、不影響棋力，純體驗</span>
+    </button>
+    <div class="card">
+      <p class="muted small">
+        棋力：<span id="rating-line">—</span>
+        · 難度：<span id="level-line">—</span>
+        · GitHub：<span id="github-status">未設定</span>
+        · <a href="#" id="settings-link">設定</a>
+        · <a href="results.html">查看紀錄</a>
+      </p>
+    </div>
+  </main>
+
+  <main id="game-view" class="hidden">
     <div id="board" class="board"></div>
 
     <div class="controls">
-      <button id="btn-new-white">開新局（執白）</button>
-      <button id="btn-new-black">開新局（執黑）</button>
-      <button id="btn-new-random">開新局（隨機）</button>
+      <button id="btn-home">🏠 主畫面</button>
+      <button id="btn-new-again">再來一局</button>
       <button id="btn-resign" class="danger">認輸</button>
-    </div>
-    <div class="controls">
-      <button id="btn-pvp-white">雙人對戰（我執白）</button>
-      <button id="btn-pvp-black">雙人對戰（我執黑）</button>
     </div>
 
     <div id="eval-bar-wrap" class="card">
@@ -36,15 +59,24 @@
     </div>
 
     <div class="card">
-      <p class="muted small">
-        棋力：<span id="rating-line">—</span>
-        · 難度：<span id="level-line">—</span>
-        · GitHub：<span id="github-status">未設定</span>
-        · <a href="#" id="settings-link">設定</a>
-        · <a href="results.html">查看紀錄</a>
-      </p>
+      <p id="mode-line" class="muted small"></p>
     </div>
   </main>
+
+  <div id="color-overlay" class="overlay hidden">
+    <div class="overlay-panel">
+      <h2 id="color-title">選邊</h2>
+      <p id="color-desc" class="muted small"></p>
+      <div class="controls color-choices">
+        <button data-color="white">我執白</button>
+        <button data-color="black">我執黑</button>
+        <button data-color="random">隨機</button>
+      </div>
+      <div class="controls">
+        <button id="color-cancel">取消</button>
+      </div>
+    </div>
+  </div>
 
   <div id="promo-overlay" class="overlay hidden">
     <div class="overlay-panel promo-panel">

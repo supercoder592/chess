@@ -6,7 +6,10 @@ function generateCommentary(movesSan, evals, userColor, resultText,
   lines.push("# 對局講評\n");
   lines.push(`- 結果：${resultText}`);
   if (levelInfo && levelInfo.mode === "pvp") {
-    lines.push("- 模式：雙人對戰（AI 只講評、不下棋，不計入棋力）");
+    lines.push("- 模式：人對人（AI 只講評、不下棋，不計入棋力）");
+    lines.push(`- 使用者執${userColor === "white" ? "白" : "黑"}\n`);
+  } else if (levelInfo && levelInfo.mode === "boss") {
+    lines.push(`- 模式：魔王關（AI 每步搜尋 ${levelInfo.sims} 次、不留手；不記錄、不計入棋力）`);
     lines.push(`- 使用者執${userColor === "white" ? "白" : "黑"}\n`);
   } else {
     const delta = ratingAfter - ratingBefore;

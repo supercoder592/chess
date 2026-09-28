@@ -30,8 +30,14 @@ let historyMap = new Map();
 let tracker = null;
 
 let userColor = "white";
-let mode = "ai";      // "ai"：跟 AI 下；"pvp"：兩個人輪流用同一支手機下，AI 只講評、記錄
+// "ai"：跟 AI 下（依棋力調難度、會記錄）；"pvp"：兩個人輪流用同一支手機下，
+// AI 只講評、記錄；"boss"：魔王關，AI 全力搜尋，不記錄、不影響棋力，純體驗
+let mode = "ai";
 let status = "idle";
+const MODE_LABEL = { ai: "人對電腦", pvp: "人對人", boss: "魔王關" };
+// 魔王關固定用比難度階梯最高階(1024 次)還多的搜尋，而且不加隨機性，
+// 每一步都走它認為最好的那步
+const BOSS_PARAMS = { level: "魔王", sims: 1536, temp: 0 };
 let movesSan = [];
 let evals = [];
 let levelInfo = { level: 0, sims: 16 };
@@ -103,19 +109,46 @@ function refreshUI() {
     document.getElementById("level-line").textContent = `${s.level}/${s.level_max}（搜尋 ${s.next_ai_sims} 次）`;
   }
 
+  const modeLine = document.getElementById("mode-line");
+  if (modeLine) {
+    if (mode === "boss") modeLine.textContent = `魔王關：AI 每步搜尋 ${BOSS_PARAMS.sims} 次、不留手。這局不記錄、不影響棋力。`;
+    else if (mode === "pvp") modeLine.textContent = "人對人：輪到誰就動誰的棋子，AI 只講評和記錄。";
+    else modeLine.textContent = `人對電腦：第 ${levelInfo.level} 階（搜尋 ${levelInfo.sims} 次），結果會計入棋力。`;
+  }
+
   if (status === "idle") {
-    statusLine.textContent = "按下面按鈕開新局";
+    statusLine.textContent = "選一種玩法開始";
   } else if (status === "playing") {
     const turnLabel = game.turn() === "w" ? "白方" : "黑方";
     const userTurn = (game.turn() === "w") === (userColor === "white");
     if (mode === "pvp") {
-      statusLine.textContent = `雙人對戰：輪到${turnLabel}${userTurn ? "（你）" : "（朋友）"}`;
+      statusLine.textContent = `人對人：輪到${turnLabel}${userTurn ? "（你）" : "（朋友）"}`;
+    } else if (mode === "boss") {
+      statusLine.textContent = aiThinking ? "魔王思考中…（全力搜尋，會久一點）" : userTurn ? "輪到你了" : `輪到 ${turnLabel}`;
     } else {
       statusLine.textContent = aiThinking ? "AI 思考中…" : userTurn ? "輪到你了" : `輪到 ${turnLabel}`;
     }
   } else if (status === "finished") {
     statusLine.textContent = "對局結束";
   }
+}
+
+// ------------------------------------------------------- 主畫面 / 對局畫面 --
+const homeView = document.getElementById("home-view");
+const gameView = document.getElementById("game-view");
+const pageTitle = document.getElementById("page-title");
+
+function showHome() {
+  homeView.classList.remove("hidden");
+  gameView.classList.add("hidden");
+  pageTitle.textContent = "♟ 西洋棋練習場";
+  status = "idle";
+  refreshUI();
+}
+function showGameView() {
+  homeView.classList.add("hidden");
+  gameView.classList.remove("hidden");
+  pageTitle.textContent = (mode === "boss" ? "👹 " : mode === "pvp" ? "👥 " : "🤖 ") + MODE_LABEL[mode];
 }
 
 // ---------------------------------------------------------------- clicks --
@@ -253,8 +286,8 @@ let lastGameSnapshot = null; // 給「看棋局回放」按鈕用
 
 async function finishGame(resultText, userScore, pgnResult) {
   status = "finished";
-  if (mode === "pvp") {
-    ratingAfter = ratingBefore;        // 雙人對戰不計入棋力，也不影響 AI 難度
+  if (mode === "pvp" || mode === "boss") {
+    ratingAfter = ratingBefore;        // 人對人、魔王關都不計入棋力，也不影響 AI 難度
   } else {
     ratingAfter = tracker.recordResult(userScore, { user_color: userColor, plies: movesSan.length });
     saveTrackerLocal();
@@ -282,6 +315,11 @@ async function finishGame(resultText, userScore, pgnResult) {
   lastGameSnapshot = snapshot;
 
   showResult(snapshot);
+  if (mode === "boss") {
+    // 魔王關純體驗：不上傳、不進紀錄
+    document.getElementById("result-save-status").textContent = "（魔王關不記錄，這局只是體驗）";
+    return;
+  }
   await trySaveToGithub(snapshot);
 }
 
@@ -300,7 +338,8 @@ async function newGame(color, newMode = "ai") {
   legalFromSel = [];
   ratingBefore = tracker.state.user_rating;
   ratingAfter = null;
-  levelInfo = tracker.currentLevelParams();
+  levelInfo = mode === "boss" ? { ...BOSS_PARAMS } : tracker.currentLevelParams();
+  showGameView();
   refreshUI();
 
   if (userColor === "black" && mode !== "pvp") {
@@ -317,11 +356,39 @@ async function newGame(color, newMode = "ai") {
   }
 }
 
-document.getElementById("btn-new-white").addEventListener("click", () => newGame("white"));
-document.getElementById("btn-new-black").addEventListener("click", () => newGame("black"));
-document.getElementById("btn-new-random").addEventListener("click", () => newGame("random"));
-document.getElementById("btn-pvp-white").addEventListener("click", () => newGame("white", "pvp"));
-document.getElementById("btn-pvp-black").addEventListener("click", () => newGame("black", "pvp"));
+// 主畫面選玩法 → 跳出選邊 → 開局
+let pendingMode = "ai";
+const colorOverlay = document.getElementById("color-overlay");
+document.querySelectorAll("#home-view .mode-card").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    if (status === "loading") return;
+    pendingMode = btn.dataset.mode;
+    document.getElementById("color-title").textContent = MODE_LABEL[pendingMode] + "：選邊";
+    document.getElementById("color-desc").textContent =
+      pendingMode === "pvp" ? "「我」指的是拿著手機、會被記錄的這一方；棋盤會朝你這邊擺。"
+      : pendingMode === "boss" ? "魔王每步全力搜尋，手機上一步可能要想十幾秒。輸了不扣棋力，放心打。"
+      : "AI 的難度會照你目前的棋力階自動調整。";
+    colorOverlay.classList.remove("hidden");
+  });
+});
+document.querySelectorAll("#color-overlay .color-choices button").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    colorOverlay.classList.add("hidden");
+    newGame(btn.dataset.color, pendingMode);
+  });
+});
+document.getElementById("color-cancel").addEventListener("click", () => colorOverlay.classList.add("hidden"));
+
+document.getElementById("btn-home").addEventListener("click", () => {
+  if (status === "playing" && !confirm("這局還沒結束，回主畫面會放棄這局（不記錄）。確定？")) return;
+  aiThinking = false;
+  showHome();
+});
+document.getElementById("btn-new-again").addEventListener("click", () => {
+  if (status === "playing" && !confirm("這局還沒結束，要直接重開嗎？（這局不記錄）")) return;
+  aiThinking = false;
+  newGame(userColor, mode);
+});
 document.getElementById("btn-resign").addEventListener("click", async () => {
   if (status !== "playing") return;
   // 雙人對戰：輪到誰、誰認輸
@@ -356,7 +423,9 @@ function simpleMarkdownToHtml(md) {
 function showResult(snapshot) {
   document.getElementById("result-title").textContent = snapshot.resultText;
   document.getElementById("result-detail").textContent =
-    `棋力：${Math.round(snapshot.ratingBefore)} → ${Math.round(snapshot.ratingAfter)}`;
+    snapshot.mode === "boss" ? "魔王關：不計棋力"
+    : snapshot.mode === "pvp" ? "人對人：不計棋力"
+    : `棋力：${Math.round(snapshot.ratingBefore)} → ${Math.round(snapshot.ratingAfter)}`;
   document.getElementById("result-save-status").textContent = "";
   document.getElementById("result-commentary").innerHTML =
     simpleMarkdownToHtml(snapshot.commentary);
@@ -571,6 +640,7 @@ async function init() {
   updateGithubStatus();
   tracker = new RatingModule.RatingTracker(loadTrackerLocal());
   game = new Chess();
+  status = "loading";
   refreshUI();
 
   statusLine.textContent = "載入模型中…（第一次會比較久，之後瀏覽器會快取）";

@@ -144,6 +144,27 @@ main {
   flex-wrap: wrap;
   gap: 8px;
 }
+
+/* 主畫面的三張玩法卡 */
+main.hidden { display: none; }
+.mode-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  text-align: left;
+  padding: 16px 18px;
+  border-radius: 14px;
+  border: 1px solid #3a3a3a;
+  background: var(--panel);
+}
+.mode-card:active { background: #2f2f2f; }
+.mode-card .mode-icon { font-size: 1.8em; }
+.mode-card .mode-name { font-size: 1.25em; font-weight: 600; }
+.mode-card .mode-desc { color: var(--muted); font-size: 0.85em; line-height: 1.4; }
+.mode-card.boss { border-color: #8a3a3a; background: linear-gradient(160deg, #2c1f1f, #241a1a); }
+.mode-card.boss .mode-name { color: #e08a7a; }
+.color-choices { margin-top: 12px; }
 button {
   flex: 1 1 auto;
   padding: 10px 8px;
