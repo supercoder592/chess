@@ -111,7 +111,7 @@ function refreshUI() {
 
   const modeLine = document.getElementById("mode-line");
   if (modeLine) {
-    if (mode === "boss") modeLine.textContent = `魔王關：AI 每步搜尋 ${BOSS_PARAMS.sims} 次、不留手。這局不記錄、不影響棋力。`;
+    if (mode === "boss") modeLine.textContent = `魔王關：AI 每步搜尋 ${BOSS_PARAMS.sims} 次、不留手。不影響棋力，棋譜會回傳給電腦練。`;
     else if (mode === "pvp") modeLine.textContent = "人對人：輪到誰就動誰的棋子，AI 只講評和記錄。";
     else modeLine.textContent = `人對電腦：第 ${levelInfo.level} 階（搜尋 ${levelInfo.sims} 次），結果會計入棋力。`;
   }
@@ -315,11 +315,7 @@ async function finishGame(resultText, userScore, pgnResult) {
   lastGameSnapshot = snapshot;
 
   showResult(snapshot);
-  if (mode === "boss") {
-    // 魔王關純體驗：不上傳、不進紀錄
-    document.getElementById("result-save-status").textContent = "（魔王關不記錄，這局只是體驗）";
-    return;
-  }
+  // 魔王關也會把棋譜傳回去給電腦練（只拿使用者這一方的棋步），但不動棋力
   await trySaveToGithub(snapshot);
 }
 
@@ -356,17 +352,33 @@ async function newGame(color, newMode = "ai") {
   }
 }
 
-// 主畫面選玩法 → 跳出選邊 → 開局
+// 主畫面選玩法 → (人對人、人對電腦要先輸密碼) → 跳出選邊 → 開局
+// 密碼只是擋一下路人，不是真的安全機制(前端程式碼看得到)；魔王關不用密碼。
+const MODE_PASSWORD = "2012";
+const UNLOCK_KEY = "chess_practice_unlocked_v1";
+function ensureUnlocked() {
+  if (sessionStorage.getItem(UNLOCK_KEY) === "1") return true;
+  const input = prompt("這個玩法需要密碼：");
+  if (input === null) return false;
+  if (input.trim() !== MODE_PASSWORD) {
+    alert("密碼錯誤");
+    return false;
+  }
+  sessionStorage.setItem(UNLOCK_KEY, "1");   // 這次開著網頁期間不再問
+  return true;
+}
+
 let pendingMode = "ai";
 const colorOverlay = document.getElementById("color-overlay");
 document.querySelectorAll("#home-view .mode-card").forEach((btn) => {
   btn.addEventListener("click", () => {
     if (status === "loading") return;
     pendingMode = btn.dataset.mode;
+    if (pendingMode !== "boss" && !ensureUnlocked()) return;
     document.getElementById("color-title").textContent = MODE_LABEL[pendingMode] + "：選邊";
     document.getElementById("color-desc").textContent =
       pendingMode === "pvp" ? "「我」指的是拿著手機、會被記錄的這一方；棋盤會朝你這邊擺。"
-      : pendingMode === "boss" ? "魔王每步全力搜尋，手機上一步可能要想十幾秒。輸了不扣棋力，放心打。"
+      : pendingMode === "boss" ? "魔王每步全力搜尋，手機上一步可能要想十幾秒。不影響棋力；棋譜會回傳給電腦練。"
       : "AI 的難度會照你目前的棋力階自動調整。";
     colorOverlay.classList.remove("hidden");
   });
@@ -467,7 +479,7 @@ async function ghPutFileRetry(path, content, message, tries = 2) {
 async function trySaveToGithub(snapshot) {
   const { movesSan, evals, userColor, mode, levelInfo, ratingBefore, ratingAfter,
          resultText, userScore, pgnResult, commentary } = snapshot;
-  const opponent = mode === "pvp" ? "朋友" : "AI";
+  const opponent = mode === "pvp" ? "朋友" : mode === "boss" ? "魔王" : "AI";
   const statusEl = document.getElementById("result-save-status");
   if (!GithubModule.getToken() || !GithubModule.getRepo()) {
     statusEl.textContent = "（沒設定 GitHub，只存在這台裝置）";
@@ -509,9 +521,11 @@ async function trySaveToGithub(snapshot) {
       sims: mode === "pvp" ? null : levelInfo.sims, moves_san: movesSan,
     });
     await ghPutFileRetry("data/games.json", JSON.stringify(games, null, 1),
-      mode === "pvp" ? `雙人對戰記錄 ${stamp}` : `對局記錄 ${stamp}（棋力 ${ratingAfter.toFixed(0)}）`);
+      mode === "pvp" ? `雙人對戰記錄 ${stamp}`
+      : mode === "boss" ? `魔王關記錄 ${stamp}`
+      : `對局記錄 ${stamp}（棋力 ${ratingAfter.toFixed(0)}）`);
 
-    if (mode !== "pvp") {
+    if (mode === "ai") {          // 只有人對電腦會動棋力；人對人、魔王關都不會
       await ghPutFileRetry("data/rating.json",
         JSON.stringify({ summary: tracker.summary(), history: tracker.state.history }, null, 1),
         `更新棋力進度（${ratingAfter.toFixed(0)}）`);

@@ -272,7 +272,9 @@ async function loadGames() {
         </div>
         <div class="game-meta">
           ${g.mode === "pvp"
-            ? `雙人對戰 · ${colorLabel} · ${g.plies} 手 · AI 只講評`
+            ? `人對人 · ${colorLabel} · ${g.plies} 手 · AI 只講評`
+            : g.mode === "boss"
+            ? `魔王關 · ${colorLabel} · ${g.plies} 手 · 搜尋 ${g.sims} 次 · 不計棋力`
             : `${colorLabel} · ${g.plies} 手 · 難度階 ${g.level}
           · 棋力 ${Math.round(g.rating_before)} → ${Math.round(g.rating_after)}`}
         </div>
