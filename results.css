@@ -191,3 +191,10 @@ button {
   cursor: pointer;
 }
 button:active { background: #2f2f2f; }
+
+/* 人物檔案（魔王關） */
+.profile { padding: 8px 0; border-bottom: 1px solid #333; }
+.profile:last-child { border-bottom: none; }
+.profile-name { font-weight: 600; margin-bottom: 4px; }
+.profile-meta { color: #9a9a9a; font-size: 0.85em; line-height: 1.6; }
+.player-select { background: #1a1a1a; color: #e8e8e8; border: 1px solid #444; border-radius: 6px; padding: 2px 4px; font-size: 0.9em; }

@@ -9,8 +9,8 @@ function generateCommentary(movesSan, evals, userColor, resultText,
     lines.push("- 模式：人對人（AI 只講評、不下棋，不計入棋力）");
     lines.push(`- 使用者執${userColor === "white" ? "白" : "黑"}\n`);
   } else if (levelInfo && levelInfo.mode === "boss") {
-    lines.push(`- 模式：魔王關（AI 每步搜尋 ${levelInfo.sims} 次、不留手；不記錄、不計入棋力）`);
-    lines.push(`- 使用者執${userColor === "white" ? "白" : "黑"}\n`);
+    lines.push(`- 模式：魔王關（AI 每步搜尋 ${levelInfo.sims} 次、不留手；不計入棋力）`);
+    lines.push(`- ${levelInfo.player ? levelInfo.player : "使用者"}執${userColor === "white" ? "白" : "黑"}\n`);
   } else {
     const delta = ratingAfter - ratingBefore;
     lines.push(`- 使用者棋力：${ratingBefore.toFixed(0)} → ${ratingAfter.toFixed(0)}` +

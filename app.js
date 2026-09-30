@@ -38,6 +38,9 @@ const MODE_LABEL = { ai: "人對電腦", pvp: "人對人", boss: "魔王關" };
 // 魔王關固定用比難度階梯最高階(1024 次)還多的搜尋，而且不加隨機性，
 // 每一步都走它認為最好的那步
 const BOSS_PARAMS = { level: "魔王", sims: 1536, temp: 0 };
+// 魔王關會標註是誰在下(一號 james、二號 白白)，紀錄頁會依此整理每個人的風格檔案
+let player = "";
+const PLAYER_KEY = "chess_practice_last_player";
 let movesSan = [];
 let evals = [];
 let levelInfo = { level: 0, sims: 16 };
@@ -111,7 +114,7 @@ function refreshUI() {
 
   const modeLine = document.getElementById("mode-line");
   if (modeLine) {
-    if (mode === "boss") modeLine.textContent = `魔王關：AI 每步搜尋 ${BOSS_PARAMS.sims} 次、不留手。不影響棋力，棋譜會回傳給電腦練。`;
+    if (mode === "boss") modeLine.textContent = `魔王關${player ? "（" + player + " 在下）" : ""}：AI 每步搜尋 ${BOSS_PARAMS.sims} 次、不留手。不影響棋力，棋譜會回傳給電腦練。`;
     else if (mode === "pvp") modeLine.textContent = "人對人：輪到誰就動誰的棋子，AI 只講評和記錄。";
     else modeLine.textContent = `人對電腦：第 ${levelInfo.level} 階（搜尋 ${levelInfo.sims} 次），結果會計入棋力。`;
   }
@@ -303,7 +306,7 @@ async function finishGame(resultText, userScore, pgnResult) {
   const snapshot = {
     movesSan: movesSan.slice(),
     evals: evals.slice(),
-    userColor, mode, levelInfo: { ...levelInfo, mode },
+    userColor, mode, player, levelInfo: { ...levelInfo, mode, player },
     ratingBefore, ratingAfter,
     resultText, userScore, pgnResult,
   };
@@ -375,6 +378,11 @@ document.querySelectorAll("#home-view .mode-card").forEach((btn) => {
     if (status === "loading") return;
     pendingMode = btn.dataset.mode;
     if (pendingMode !== "boss" && !ensureUnlocked()) return;
+    const pf = document.getElementById("player-field");
+    pf.classList.toggle("hidden", pendingMode !== "boss");
+    if (pendingMode === "boss") {
+      document.getElementById("player-select").value = localStorage.getItem(PLAYER_KEY) || "james";
+    }
     document.getElementById("color-title").textContent = MODE_LABEL[pendingMode] + "：選邊";
     document.getElementById("color-desc").textContent =
       pendingMode === "pvp" ? "「我」指的是拿著手機、會被記錄的這一方；棋盤會朝你這邊擺。"
@@ -386,6 +394,8 @@ document.querySelectorAll("#home-view .mode-card").forEach((btn) => {
 document.querySelectorAll("#color-overlay .color-choices button").forEach((btn) => {
   btn.addEventListener("click", () => {
     colorOverlay.classList.add("hidden");
+    player = pendingMode === "boss" ? document.getElementById("player-select").value : "";
+    if (player) localStorage.setItem(PLAYER_KEY, player);
     newGame(btn.dataset.color, pendingMode);
   });
 });
@@ -477,9 +487,10 @@ async function ghPutFileRetry(path, content, message, tries = 2) {
 // snapshot: finishGame() 存的那份獨立拷貝，全程只用這個，不碰全域變數，
 // 使用者手速再快、馬上開新局，也不會弄壞正在傳的這一局。
 async function trySaveToGithub(snapshot) {
-  const { movesSan, evals, userColor, mode, levelInfo, ratingBefore, ratingAfter,
+  const { movesSan, evals, userColor, mode, player, levelInfo, ratingBefore, ratingAfter,
          resultText, userScore, pgnResult, commentary } = snapshot;
   const opponent = mode === "pvp" ? "朋友" : mode === "boss" ? "魔王" : "AI";
+  const userLabel = player ? player : "使用者";
   const statusEl = document.getElementById("result-save-status");
   if (!GithubModule.getToken() || !GithubModule.getRepo()) {
     statusEl.textContent = "（沒設定 GitHub，只存在這台裝置）";
@@ -499,8 +510,8 @@ async function trySaveToGithub(snapshot) {
     const replay = new Chess();
     replay.header("Event", "西洋棋 AI 練習場",
       "Date", `${now.getUTCFullYear()}.${pad2(now.getUTCMonth() + 1)}.${pad2(now.getUTCDate())}`,
-      "White", userColor === "white" ? "使用者" : opponent,
-      "Black", userColor === "white" ? opponent : "使用者",
+      "White", userColor === "white" ? userLabel : opponent,
+      "Black", userColor === "white" ? opponent : userLabel,
       "Result", pgnResult);
     for (const san of movesSan) replay.move(san);
     const pgn = replay.pgn();
@@ -515,7 +526,7 @@ async function trySaveToGithub(snapshot) {
     games.push({
       stamp, date: taiwanDisplay(now),
       pgn: `games/${stamp}.pgn`, commentary: `games/${stamp}_commentary.md`,
-      result: resultText, user_color: userColor, user_score: userScore, mode,
+      result: resultText, user_color: userColor, user_score: userScore, mode, player,
       plies: movesSan.length, rating_before: ratingBefore, rating_after: ratingAfter,
       level: mode === "pvp" ? null : levelInfo.level,
       sims: mode === "pvp" ? null : levelInfo.sims, moves_san: movesSan,

@@ -274,3 +274,5 @@ a { color: var(--accent); }
   margin-top: 3px;
   flex: none;
 }
+
+.hidden { display: none !important; }

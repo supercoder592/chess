@@ -241,6 +241,72 @@ async function deleteGame(g) {
   }
 }
 
+// 標註這局是誰下的(一號 james、二號 白白)，寫回 games.json
+const PLAYERS = ["james", "白白"];
+async function setPlayer(g, name) {
+  if (!GithubModule.getToken() || !GithubModule.getRepo()) {
+    alert("沒有設定 GitHub token，沒辦法修改雲端上的紀錄");
+    return;
+  }
+  try {
+    const gamesFile = await GithubModule.ghGetFile("data/games.json");
+    const games = gamesFile ? JSON.parse(gamesFile.content) : [];
+    for (const x of games) if (x.stamp === g.stamp) x.player = name;
+    await GithubModule.ghPutFile("data/games.json", JSON.stringify(games, null, 1),
+      `標註 ${g.stamp} 是 ${name || "未標註"} 下的`);
+    lastGamesSignature = "";
+    await loadGames();
+  } catch (e) {
+    alert("標註失敗：" + e.message);
+  }
+}
+
+// 每個人的風格檔案：只看魔王關、有標註是誰下的局。全部從棋譜本身統計，
+// 不含任何棋理判斷。
+function renderProfiles(games) {
+  const box = document.getElementById("profiles-list");
+  const byPlayer = {};
+  for (const g of games) {
+    if (g.mode !== "boss" || !g.player) continue;
+    (byPlayer[g.player] = byPlayer[g.player] || []).push(g);
+  }
+  const names = PLAYERS.filter((p) => byPlayer[p]).concat(Object.keys(byPlayer).filter((p) => !PLAYERS.includes(p)));
+  if (!names.length) {
+    box.innerHTML = "<p class='muted'>還沒有標註過誰下的魔王關對局</p>";
+    return;
+  }
+  box.innerHTML = names.map((name) => {
+    const gs = byPlayer[name];
+    const w = gs.filter((g) => g.user_score === 1).length;
+    const d = gs.filter((g) => g.user_score === 0.5).length;
+    const l = gs.length - w - d;
+    const avgPlies = gs.reduce((s, g) => s + (g.plies || 0), 0) / gs.length;
+    const resigned = gs.filter((g) => /認輸/.test(g.result || "") && g.user_score === 0).length;
+    const mated = gs.filter((g) => /將死/.test(g.result || "") && g.user_score === 0).length;
+    const openings = {};
+    for (const g of gs) {
+      const ms = g.moves_san || [];
+      const own = g.user_color === "white" ? ms.slice(0, 3).filter((_, i) => i % 2 === 0)
+                                           : ms.slice(0, 4).filter((_, i) => i % 2 === 1);
+      if (!own.length) continue;
+      const key = `${g.user_color === "white" ? "白" : "黑"}：${own.join(" ")}`;
+      openings[key] = (openings[key] || 0) + 1;
+    }
+    const fav = Object.entries(openings).sort((a, b) => b[1] - a[1]).slice(0, 3)
+      .map(([k, v]) => `${k}（${v} 局）`).join("、") || "—";
+    const longest = Math.max(...gs.map((g) => g.plies || 0));
+    return `
+      <div class="profile">
+        <div class="profile-name">👤 ${name}</div>
+        <div class="profile-meta">
+          對魔王 ${gs.length} 局：${w} 勝 ${d} 和 ${l} 負（勝率 ${Math.round(100 * (w + 0.5 * d) / gs.length)}%）<br>
+          平均 ${avgPlies.toFixed(0)} 手 · 最長 ${longest} 手 · 輸的局裡 ${resigned} 局認輸、${mated} 局被將死<br>
+          常用開局：${fav}
+        </div>
+      </div>`;
+  }).join("");
+}
+
 let lastGamesSignature = "";
 
 async function loadGames() {
@@ -249,12 +315,14 @@ async function loadGames() {
   if (!games || games.length === 0) {
     list.innerHTML = "<p class='muted'>還沒有對局紀錄</p>";
     lastGamesSignature = "";
+    renderProfiles([]);
     return;
   }
   // 內容沒變就不要重畫，避免每次輪詢都閃一下、還會打斷正在看的回放
-  const sig = games.map((g) => g.stamp).join(",");
+  const sig = games.map((g) => g.stamp + ":" + (g.player || "")).join(",");
   if (sig === lastGamesSignature) return;
   lastGamesSignature = sig;
+  renderProfiles(games);
 
   list.innerHTML = "";
   games
@@ -274,12 +342,21 @@ async function loadGames() {
           ${g.mode === "pvp"
             ? `人對人 · ${colorLabel} · ${g.plies} 手 · AI 只講評`
             : g.mode === "boss"
-            ? `魔王關 · ${colorLabel} · ${g.plies} 手 · 搜尋 ${g.sims} 次 · 不計棋力`
+            ? `魔王關 · ${colorLabel} · ${g.plies} 手 · 搜尋 ${g.sims} 次 · 不計棋力 · 下的人：
+               <select class="player-select">
+                 ${PLAYERS.map((p) => `<option value="${p}" ${g.player === p ? "selected" : ""}>${p}</option>`).join("")}
+                 <option value="" ${!g.player ? "selected" : ""}>未標註</option>
+               </select>`
             : `${colorLabel} · ${g.plies} 手 · 難度階 ${g.level}
           · 棋力 ${Math.round(g.rating_before)} → ${Math.round(g.rating_after)}`}
         </div>
       `;
       el.addEventListener("click", () => showGame(g));
+      const sel = el.querySelector(".player-select");
+      if (sel) {
+        sel.addEventListener("click", (e) => e.stopPropagation());
+        sel.addEventListener("change", (e) => { e.stopPropagation(); setPlayer(g, sel.value); });
+      }
       el.querySelector(".delete-btn").addEventListener("click", (e) => {
         e.stopPropagation();
         deleteGame(g);
