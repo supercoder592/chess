@@ -38,9 +38,8 @@ const MODE_LABEL = { ai: "人對電腦", pvp: "人對人", boss: "魔王關" };
 // 魔王關固定用比難度階梯最高階(1024 次)還多的搜尋，而且不加隨機性，
 // 每一步都走它認為最好的那步
 const BOSS_PARAMS = { level: "魔王", sims: 512, temp: 0 };   // 使用者說太慢，1536 → 512(手機一步約 3~5 秒)，仍不留手、零隨機
-// 魔王關會標註是誰在下(一號 james、二號 白白)，紀錄頁會依此整理每個人的風格檔案
+// 魔王關的局是誰下的(一號 james、二號 白白)在紀錄頁事後標註，這裡只留欄位
 let player = "";
-const PLAYER_KEY = "chess_practice_last_player";
 let movesSan = [];
 let evals = [];
 let levelInfo = { level: 0, sims: 16 };
@@ -378,11 +377,6 @@ document.querySelectorAll("#home-view .mode-card").forEach((btn) => {
     if (status === "loading") return;
     pendingMode = btn.dataset.mode;
     if (pendingMode !== "boss" && !ensureUnlocked()) return;
-    const pf = document.getElementById("player-field");
-    pf.classList.toggle("hidden", pendingMode !== "boss");
-    if (pendingMode === "boss") {
-      document.getElementById("player-select").value = localStorage.getItem(PLAYER_KEY) || "james";
-    }
     document.getElementById("color-title").textContent = MODE_LABEL[pendingMode] + "：選邊";
     document.getElementById("color-desc").textContent =
       pendingMode === "pvp" ? "「我」指的是拿著手機、會被記錄的這一方；棋盤會朝你這邊擺。"
@@ -394,8 +388,7 @@ document.querySelectorAll("#home-view .mode-card").forEach((btn) => {
 document.querySelectorAll("#color-overlay .color-choices button").forEach((btn) => {
   btn.addEventListener("click", () => {
     colorOverlay.classList.add("hidden");
-    player = pendingMode === "boss" ? document.getElementById("player-select").value : "";
-    if (player) localStorage.setItem(PLAYER_KEY, player);
+    player = "";     // 是誰下的在「查看紀錄」頁事後標註，開局時不問
     newGame(btn.dataset.color, pendingMode);
   });
 });
