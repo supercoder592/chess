@@ -276,3 +276,4 @@ a { color: var(--accent); }
 }
 
 .hidden { display: none !important; }
+.field select { display: block; width: 100%; margin-top: 4px; padding: 9px 10px; border-radius: 8px; border: 1px solid #444; background: #1a1a1a; color: var(--fg); font-size: 0.95em; }
