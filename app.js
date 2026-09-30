@@ -37,7 +37,7 @@ let status = "idle";
 const MODE_LABEL = { ai: "人對電腦", pvp: "人對人", boss: "魔王關" };
 // 魔王關固定用比難度階梯最高階(1024 次)還多的搜尋，而且不加隨機性，
 // 每一步都走它認為最好的那步
-const BOSS_PARAMS = { level: "魔王", sims: 1536, temp: 0 };
+const BOSS_PARAMS = { level: "魔王", sims: 512, temp: 0 };   // 使用者說太慢，1536 → 512(手機一步約 3~5 秒)，仍不留手、零隨機
 // 魔王關會標註是誰在下(一號 james、二號 白白)，紀錄頁會依此整理每個人的風格檔案
 let player = "";
 const PLAYER_KEY = "chess_practice_last_player";
@@ -386,7 +386,7 @@ document.querySelectorAll("#home-view .mode-card").forEach((btn) => {
     document.getElementById("color-title").textContent = MODE_LABEL[pendingMode] + "：選邊";
     document.getElementById("color-desc").textContent =
       pendingMode === "pvp" ? "「我」指的是拿著手機、會被記錄的這一方；棋盤會朝你這邊擺。"
-      : pendingMode === "boss" ? "魔王每步全力搜尋，手機上一步可能要想十幾秒。不影響棋力；棋譜會回傳給電腦練。"
+      : pendingMode === "boss" ? "魔王每步搜尋 512 次、零隨機，手機上一步約幾秒。不影響棋力；棋譜會回傳給電腦練。"
       : "AI 的難度會照你目前的棋力階自動調整。";
     colorOverlay.classList.remove("hidden");
   });
