@@ -1,0 +1,7 @@
+[Event "西洋棋 AI 練習場"]
+[Date "2026.10.02"]
+[White "使用者"]
+[Black "魔王"]
+[Result "0-1"]
+
+1. e4 c5 2. Qh5 g6 3. Qxc5 Nc6 4. Bc4 Bg7 5. Qd5 e6 6. Qd3 Ne5 7. Qb3 Nxc4 8. Qxc4 Ne7 9. d3 d5 10. Qa4+ Bd7 11. Qa3 Rc8 12. Kd1 dxe4 13. dxe4 Bc6+ 14. Qd3 O-O 15. Nf3 Qxd3+ 16. cxd3 Rfd8 17. Bg5 Rxd3+ 18. Ke2 Bxe4 19. Bxe7 Rd7 20. Bb4 Bd3+ 21. Ke3 Bh6+ 22. Ng5 Bxg5+ 23. Kf3 Bf6 24. Rd1 Bxb2 25. Rxd3 Rxd3+ 26. Ke2 Rd4 27. Na3 Rxb4 28. Rc1 Rxc1 0-1
