@@ -673,5 +673,37 @@
    "Qxb5+",
    "Kd8"
   ]
+ },
+ {
+  "stamp": "2026-10-02T15-52-35",
+  "date": "2026-10-02 15:52",
+  "pgn": "games/2026-10-02T15-52-35.pgn",
+  "commentary": "games/2026-10-02T15-52-35_commentary.md",
+  "result": "白方獲勝（你認輸了）",
+  "user_color": "black",
+  "user_score": 0,
+  "mode": "boss",
+  "player": "",
+  "plies": 14,
+  "rating_before": 800,
+  "rating_after": 800,
+  "level": "魔王",
+  "sims": 512,
+  "moves_san": [
+   "e4",
+   "Nc6",
+   "d4",
+   "Nxd4",
+   "Qxd4",
+   "c6",
+   "Nf3",
+   "g6",
+   "Qxh8",
+   "Qa5+",
+   "Bd2",
+   "Qd5",
+   "exd5",
+   "cxd5"
+  ]
  }
 ]
