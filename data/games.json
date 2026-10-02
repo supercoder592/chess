@@ -597,5 +597,37 @@
    "Rxd7",
    "Re1#"
   ]
+ },
+ {
+  "stamp": "2026-10-02T13-53-58",
+  "date": "2026-10-02 13:53",
+  "pgn": "games/2026-10-02T13-53-58.pgn",
+  "commentary": "games/2026-10-02T13-53-58_commentary.md",
+  "result": "黑方獲勝（你認輸了）",
+  "user_color": "white",
+  "user_score": 0,
+  "mode": "boss",
+  "player": "",
+  "plies": 14,
+  "rating_before": 818.1,
+  "rating_after": 818.1,
+  "level": "魔王",
+  "sims": 512,
+  "moves_san": [
+   "e4",
+   "c5",
+   "Qh5",
+   "g6",
+   "Qe5",
+   "Nf6",
+   "Bb5",
+   "a6",
+   "d4",
+   "axb5",
+   "dxc5",
+   "Nc6",
+   "Qg5",
+   "h6"
+  ]
  }
 ]
